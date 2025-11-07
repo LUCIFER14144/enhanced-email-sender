@@ -60,77 +60,64 @@ class CloudSync:
         except Exception as e:
             logger.error(f"Failed to save cached credentials: {e}")
         
-    def authenticate(self, username: str, password: str) -> tuple[bool, str]:
-        """Authenticate user with cloud backend and get API key
-        Returns: (success, message)"""
-        try:
-            logger.info(f"Authenticating user: {username}")
-            response = requests.post(
-                f"{self.api_base_url}/token",
-                data={"username": username, "password": password},
-                timeout=10
-            )
-            
-            data = response.json()
-            
-            if response.status_code == 200 and data.get("success"):
-                self.token = data["token"]
-                self.user_data = data["user"]
+    def authenticate(self, username: str, password: str) -> bool:
+        """Authenticate user with cloud backend and get JWT token.
+
+        Supports both main /api/auth/login (returns {'success': True, 'token': ..., 'user': {...}})
+        and production /api/auth/login (returns {'message': 'Login successful', 'token': ..., 'user': {...}}).
+        Falls back to legacy /token endpoint if present (not currently implemented).
+        """
+        login_endpoints = ["/api/auth/login", "/token"]  # attempt modern first
+        for endpoint in login_endpoints:
+            try:
+                logger.info(f"Authenticating user '{username}' via {endpoint}")
+                response = requests.post(
+                    f"{self.api_base_url}{endpoint}",
+                    json={"username": username, "password": password},
+                    timeout=12
+                )
+                if response.status_code != 200:
+                    logger.debug(f"Endpoint {endpoint} returned status {response.status_code}")
+                    continue
+                data = response.json()
+                # Accept either 'success': True or 'message' containing 'Login'
+                login_ok = data.get("success") is True or ("message" in data and "login" in data["message"].lower())
+                if not login_ok:
+                    logger.debug(f"Endpoint {endpoint} response not indicating success: {data}")
+                    continue
+                token = data.get("token")
+                user_obj = data.get("user")
+                if not token or not user_obj:
+                    logger.warning("Login response missing token or user object")
+                    continue
+                # Normalize user data (add days_remaining if missing)
+                expires_at = user_obj.get("expires_at")
+                if expires_at and "days_remaining" not in user_obj:
+                    try:
+                        dt_exp = datetime.fromisoformat(expires_at.replace("Z", ""))
+                        delta = dt_exp - datetime.utcnow()
+                        user_obj["days_remaining"] = max(0, delta.days)
+                    except Exception:
+                        user_obj["days_remaining"] = 0
+                self.token = token
+                self.user_data = user_obj
                 self.last_sync = datetime.now()
-                self._save_cached_credentials()
-                
-                logger.info(f"Authentication successful for user: {username}")
-                return True, "Login successful!"
-            elif response.status_code == 401:
-                return False, "Invalid username or password"
-            elif response.status_code == 403:
-                return False, "Account is inactive or expired"
-            else:
-                logger.warning(f"Auth error: {response.status_code} - {data.get('detail', 'Unknown error')}")
-                return False, data.get("detail", "Authentication failed")
-            
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Authentication error: {e}")
-            return False
+                logger.info(f"Authentication successful for user '{username}'")
+                return True
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Auth network error ({endpoint}): {e}")
+            except Exception as e:
+                logger.error(f"Unexpected auth error ({endpoint}): {e}")
+        logger.warning(f"Authentication failed for user '{username}' after trying endpoints: {login_endpoints}")
+        return False
     
     def check_subscription_status(self) -> dict:
         """Check user subscription status and limits"""
-        if not self.token:
+        if not self.api_key:
             return {
                 "valid": False,
-                "error": "Please log in to continue"
+                "error": "No API key available"
             }
-            
-        try:
-            response = requests.get(
-                f"{self.api_base_url}/api/subscription/status",
-                headers={"Authorization": f"Bearer {self.token}"},
-                timeout=10
-            )
-            
-            if response.status_code == 200:
-                data = response.json()
-                subscription_info = {
-                    "valid": data.get("is_active", False),
-                    "type": data.get("subscription_tier", "free"),
-                    "expires_at": data.get("expires_at"),
-                    "daily_limit": data.get("daily_email_limit", 100),
-                    "emails_sent_today": data.get("emails_sent_today", 0)
-                }
-                
-                self.subscription_info = subscription_info
-                return subscription_info
-                
-            elif response.status_code == 401:
-                return {
-                    "valid": False,
-                    "error": "Session expired. Please log in again."
-                }
-            else:
-                return {
-                    "valid": False,
-                    "error": f"Error checking subscription: {response.status_code}"
-                }
             
         try:
             headers = {
