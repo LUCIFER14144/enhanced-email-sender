@@ -1109,7 +1109,12 @@ async def admin_extend_subscription(
         if not users:
             return JSONResponse({"success": False, "detail": "User not found"}, status_code=404)
         
-        current_expiry = datetime.fromisoformat(users[0]["expires_at"].replace('Z', '+00:00'))
+        user = users[0]
+        if user.get("expires_at"):
+            current_expiry = datetime.fromisoformat(user["expires_at"].replace('Z', '+00:00'))
+        else:
+            current_expiry = datetime.utcnow()
+        
         new_expiry = current_expiry + timedelta(days=days)
         
         await supabase.update("users", 
