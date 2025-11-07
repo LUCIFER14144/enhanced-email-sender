@@ -2,7 +2,6 @@ from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, Req
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
-from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 import os
@@ -34,13 +33,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Templates - use try/except for Vercel compatibility
-try:
-    templates = Jinja2Templates(directory="admin/templates")
-except Exception as e:
-    logger.warning(f"Templates directory not found: {e}")
-    templates = None
 
 # Configuration
 JWT_SECRET = os.getenv("JWT_SECRET", "your-super-secret-jwt-key-change-in-production")
@@ -718,7 +710,34 @@ async def get_campaigns(user_id: int = Depends(verify_token)):
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_login_page(request: Request):
     """Admin login page"""
-    return templates.TemplateResponse("admin_login.html", {"request": request})
+    return HTMLResponse("""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Admin Login - Enhanced Email Sender</title>
+        <style>
+            body { font-family: Arial; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                   display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+            .login-box { background: white; padding: 40px; border-radius: 10px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); width: 350px; }
+            h2 { text-align: center; color: #333; margin-bottom: 30px; }
+            input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+            button { width: 100%; padding: 12px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+            button:hover { background: #5568d3; }
+            .error { color: red; text-align: center; margin-top: 10px; }
+        </style>
+    </head>
+    <body>
+        <div class="login-box">
+            <h2>🔐 Admin Login</h2>
+            <form method="post" action="/admin/login">
+                <input type="text" name="username" placeholder="Username" required>
+                <input type="password" name="password" placeholder="Password" required>
+                <button type="submit">Login</button>
+            </form>
+        </div>
+    </body>
+    </html>
+    """)
 
 @app.post("/admin/login")
 async def admin_login(request: Request, username: str = Form(), password: str = Form()):
@@ -735,10 +754,35 @@ async def admin_login(request: Request, username: str = Form(), password: str = 
         response.set_cookie("admin_token", token, httponly=True, max_age=28800)
         return response
     
-    return templates.TemplateResponse("admin_login.html", {
-        "request": request, 
-        "error": "Invalid admin credentials"
-    })
+    return HTMLResponse("""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Admin Login - Enhanced Email Sender</title>
+        <style>
+            body { font-family: Arial; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                   display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+            .login-box { background: white; padding: 40px; border-radius: 10px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); width: 350px; }
+            h2 { text-align: center; color: #333; margin-bottom: 30px; }
+            input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+            button { width: 100%; padding: 12px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+            button:hover { background: #5568d3; }
+            .error { color: red; text-align: center; margin-top: 10px; background: #ffe6e6; padding: 10px; border-radius: 5px; }
+        </style>
+    </head>
+    <body>
+        <div class="login-box">
+            <h2>🔐 Admin Login</h2>
+            <div class="error">❌ Invalid admin credentials</div>
+            <form method="post" action="/admin/login">
+                <input type="text" name="username" placeholder="Username" required>
+                <input type="password" name="password" placeholder="Password" required>
+                <button type="submit">Login</button>
+            </form>
+        </div>
+    </body>
+    </html>
+    """)
 
 @app.get("/admin/logout")
 async def admin_logout():
@@ -750,23 +794,58 @@ async def admin_logout():
 @app.get("/admin/dashboard", response_class=HTMLResponse)
 async def admin_dashboard(request: Request, admin: bool = Depends(verify_admin_session)):
     """Admin dashboard"""
-    try:
-        # Get all users with statistics
-        users = await supabase.select("users")
-        
-        # Add days remaining calculation for each user
-        for user in users:
-            user["days_remaining"] = calculate_days_remaining(user["expires_at"])
-            user["status"] = "expired" if user["days_remaining"] <= 0 else "active"
-        
-        # Get statistics
-        total_users = len(users)
-        active_users = len([u for u in users if u["days_remaining"] > 0])
-        expired_users = total_users - active_users
-        
-        # Get recent campaigns
-        campaigns = await supabase.select("email_campaigns")
-        total_campaigns = len(campaigns)
+    return HTMLResponse("""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Admin Dashboard</title>
+        <style>
+            body { font-family: Arial; margin: 0; background: #f5f5f5; }
+            .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; }
+            .container { max-width: 1200px; margin: 20px auto; padding: 20px; }
+            .card { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+            h1 { margin: 0; }
+            .btn { padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; text-decoration: none; }
+            .btn:hover { background: #5568d3; }
+            .message { background: #d4edda; color: #155724; padding: 15px; border-radius: 5px; margin: 15px 0; }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>📧 Enhanced Email Sender - Admin Dashboard</h1>
+        </div>
+        <div class="container">
+            <div class="card">
+                <h2>Admin Panel</h2>
+                <p>Welcome to the Enhanced Email Sender admin dashboard!</p>
+                <p><strong>Note:</strong> Connect your Supabase database to manage users, campaigns, and settings.</p>
+                <p><a href="/admin/logout" class="btn">Logout</a></p>
+            </div>
+            <div class="card">
+                <h3>Quick Setup Guide</h3>
+                <ol>
+                    <li>Set up your Supabase project at <a href="https://supabase.com" target="_blank">supabase.com</a></li>
+                    <li>Add environment variables in Vercel:
+                        <ul>
+                            <li>SUPABASE_URL</li>
+                            <li>SUPABASE_SERVICE_KEY</li>
+                            <li>JWT_SECRET</li>
+                        </ul>
+                    </li>
+                    <li>Run the database schema from /database/schema.sql</li>
+                    <li>Redeploy your application</li>
+                </ol>
+            </div>
+            <div class="card">
+                <h3>API Status</h3>
+                <p>✅ API is running</p>
+                <p>📍 Base URL: <code>https://perfected-vercelblasting.vercel.app</code></p>
+                <p>📦 Download Page: <a href="/download">/download</a></p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """)
         
         stats = {
             "total_users": total_users,
