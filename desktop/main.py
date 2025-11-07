@@ -559,18 +559,28 @@ Or register a new account above."""
     
     def update_cloud_status(self):
         """Update cloud connection status display"""
+        # Safety check: only update if widgets exist
+        if not hasattr(self, 'cloud_status_label'):
+            return
+            
         if self.cloud_sync and self.cloud_sync.user_data:
             user = self.cloud_sync.user_data
             status_text = f"☁️ Connected as {user['username']}"
             self.cloud_status_label.config(text=status_text)
-            self.connection_status_label.config(text="✅ Connected to cloud")
+            if hasattr(self, 'connection_status_label'):
+                self.connection_status_label.config(text="✅ Connected to cloud")
         else:
             username = self.user_data.get("user", {}).get("username", "User") if self.user_data else "User"
             self.cloud_status_label.config(text=f"☁️ Connected as {username}")
-            self.connection_status_label.config(text="✅ Connected to cloud")
+            if hasattr(self, 'connection_status_label'):
+                self.connection_status_label.config(text="✅ Connected to cloud")
     
     def refresh_cloud_tab(self):
         """Refresh cloud tab content"""
+        # Safety check: only refresh if widgets exist
+        if not hasattr(self, 'notebook'):
+            return
+            
         # Remove and recreate the cloud tab
         for i, tab_id in enumerate(self.notebook.tabs()):
             if self.notebook.tab(tab_id, "text") == "☁️ Cloud Sync":
