@@ -13,7 +13,23 @@
       "dest": "/admin/static/favicon.ico"
     },
     {
+      "src": "/download",
+      "dest": "/admin/static/download.html"
+    },
+    {
+      "src": "/desktop/Enhanced-Email-Sender.exe",
+      "dest": "/desktop/dist/Enhanced-Email-Sender.exe",
+      "headers": {
+        "content-type": "application/octet-stream",
+        "content-disposition": "attachment; filename=Enhanced-Email-Sender.exe"
+      }
+    },
+    {
       "src": "/admin/(.*)",
+      "dest": "/api/main_production.py"
+    },
+    {
+      "src": "/admin",
       "dest": "/api/main_production.py"
     },
     {

@@ -49,6 +49,57 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Serve static files
+app.mount("/static", StaticFiles(directory="admin/static"), name="static")
+
+@app.get("/")
+async def root():
+    """Redirect root to download page"""
+    return RedirectResponse(url="/download")
+
+@app.get("/admin/login", response_class=HTMLResponse)
+async def admin_login_page(request: Request):
+    """Admin login page"""
+    if templates is None:
+        raise HTTPException(status_code=500, detail="Templates not loaded")
+    return templates.TemplateResponse("admin_login.html", {"request": request})
+
+@app.post("/admin/login")
+async def admin_login(request: Request, username: str = Form(...), password: str = Form(...)):
+    """Handle admin login"""
+    if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+        response = RedirectResponse(url="/admin/dashboard", status_code=302)
+        token = create_jwt_token({"username": username, "role": "admin"})
+        response.set_cookie(key="admin_token", value=token, httponly=True)
+        return response
+    
+    return templates.TemplateResponse(
+        "admin_login.html",
+        {"request": request, "error": "Invalid credentials"},
+        status_code=401
+    )
+
+@app.get("/admin/dashboard", response_class=HTMLResponse)
+async def admin_dashboard(request: Request):
+    """Admin dashboard page"""
+    token = request.cookies.get("admin_token")
+    if not token:
+        return RedirectResponse(url="/admin/login")
+    
+    try:
+        payload = verify_jwt_token(token)
+        if payload.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Not an admin")
+        
+        return templates.TemplateResponse("admin_dashboard.html", {
+            "request": request,
+            "username": payload.get("username")
+        })
+    except:
+        response = RedirectResponse(url="/admin/login")
+        response.delete_cookie("admin_token")
+        return response
+
 # Templates and static files
 templates = None
 try:
