@@ -24,8 +24,8 @@ logger = logging.getLogger(__name__)
 class CloudSync:
     """Handle cloud synchronization and authentication"""
     
-    def __init__(self, api_base_url: str = None):
-        self.api_base_url = api_base_url or "https://perfected-vercelblasting.vercel.app"
+    def __init__(self):
+        self.api_base_url = "https://perfected-vercelblasting.vercel.app"
         self.token = None
         self.user_data = None
         self.expiration_check_interval = 300  # Check every 5 minutes
@@ -346,23 +346,17 @@ def create_cloud_login_window() -> Optional[CloudSync]:
     form_frame = ttk.LabelFrame(main_frame, text="Sign In", padding="20")
     form_frame.pack(fill=tk.X, pady=(0, 20))
     
-    # API URL input
-    ttk.Label(form_frame, text="API URL:").grid(row=0, column=0, sticky=tk.W, padx=(0, 10), pady=(0, 10))
-    api_url_var = tk.StringVar(value="https://your-vercel-app.vercel.app")
-    api_url_entry = ttk.Entry(form_frame, textvariable=api_url_var, width=40)
-    api_url_entry.grid(row=0, column=1, sticky=(tk.W, tk.E), pady=(0, 10))
-    
     # Username input
-    ttk.Label(form_frame, text="Username:").grid(row=1, column=0, sticky=tk.W, padx=(0, 10), pady=(0, 10))
+    ttk.Label(form_frame, text="Username:").grid(row=0, column=0, sticky=tk.W, padx=(0, 10), pady=(0, 10))
     username_var = tk.StringVar()
     username_entry = ttk.Entry(form_frame, textvariable=username_var, width=40)
-    username_entry.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=(0, 10))
+    username_entry.grid(row=0, column=1, sticky=(tk.W, tk.E), pady=(0, 10))
     
     # Password input
-    ttk.Label(form_frame, text="Password:").grid(row=2, column=0, sticky=tk.W, padx=(0, 10), pady=(0, 10))
+    ttk.Label(form_frame, text="Password:").grid(row=1, column=0, sticky=tk.W, padx=(0, 10), pady=(0, 10))
     password_var = tk.StringVar()
     password_entry = ttk.Entry(form_frame, textvariable=password_var, show="*", width=40)
-    password_entry.grid(row=2, column=1, sticky=(tk.W, tk.E), pady=(0, 10))
+    password_entry.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=(0, 10))
     
     # Configure grid weights
     form_frame.grid_columnconfigure(1, weight=1)
@@ -378,21 +372,16 @@ def create_cloud_login_window() -> Optional[CloudSync]:
         """Attempt to authenticate with cloud"""
         username = username_var.get().strip()
         password = password_var.get()
-        api_url = api_url_var.get().strip()
         
         if not username or not password:
             status_label.config(text="❌ Please enter username and password", foreground="red")
-            return
-        
-        if not api_url:
-            status_label.config(text="❌ Please enter API URL", foreground="red")
             return
         
         status_label.config(text="🔄 Authenticating...", foreground="blue")
         root.update()
         
         # Create cloud sync instance
-        cloud_sync = CloudSync(api_url)
+        cloud_sync = CloudSync()
         
         # Try authentication
         if cloud_sync.authenticate(username, password):
@@ -405,32 +394,12 @@ def create_cloud_login_window() -> Optional[CloudSync]:
                                    "Your subscription has expired. Please contact admin to renew.")
                 return
             
-            # Show success and warnings
+            # Show success
             status_label.config(text="✅ Authentication successful!", foreground="green")
-            
-            if days_remaining <= 7:
-                messagebox.showwarning("Subscription Expiring", 
-                                     f"⚠️ Your subscription expires in {days_remaining} days!")
-            elif days_remaining <= 30:
-                messagebox.showinfo("Subscription Notice", 
-                                  f"ℹ️ Your subscription expires in {days_remaining} days.")
-            
             result["cloud_sync"] = cloud_sync
-            root.after(1000, root.quit)
-            
+            root.quit()
         else:
             status_label.config(text="❌ Authentication failed", foreground="red")
-    
-    def try_offline_mode():
-        """Continue in offline mode"""
-        response = messagebox.askyesno("Offline Mode", 
-                                     "Continue without cloud features?\n\n"
-                                     "• No cloud sync\n"
-                                     "• No backup to cloud\n"
-                                     "• Local data only")
-        if response:
-            result["cloud_sync"] = None
-            root.quit()
     
     # Buttons
     button_frame = ttk.Frame(main_frame)
@@ -439,10 +408,7 @@ def create_cloud_login_window() -> Optional[CloudSync]:
     login_btn = ttk.Button(button_frame, text="🚀 Sign In", command=try_login)
     login_btn.pack(side=tk.LEFT, padx=(0, 10))
     
-    offline_btn = ttk.Button(button_frame, text="💻 Offline Mode", command=try_offline_mode)
-    offline_btn.pack(side=tk.LEFT, padx=(0, 10))
-    
-    exit_btn = ttk.Button(button_frame, text="❌ Exit", command=root.quit)
+    exit_btn = ttk.Button(button_frame, text="❌ Exit", command=lambda: (result.update({"cloud_sync": None}), root.quit()))
     exit_btn.pack(side=tk.RIGHT)
     
     # Info section
