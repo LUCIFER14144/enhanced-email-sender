@@ -1,1 +1,23 @@
 .vercel
+# Python caches
+__pycache__/
+*.py[cod]
+*.pyo
+
+# PyInstaller build artifacts
+desktop/build/
+desktop/dist/
+*.spec
+
+# Environment files
+.env
+.env.*
+
+# OS / editor junk
+Thumbs.db
+.DS_Store
+.vscode/
+
+# Backup files
+desktop/*_backup.py
+desktop/*backup*.py
