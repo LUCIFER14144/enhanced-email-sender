@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, Req
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 import os
@@ -10,6 +11,7 @@ import json
 from datetime import datetime, timedelta
 import logging
 import httpx
+from pathlib import Path
 
 # Configure logging FIRST
 logging.basicConfig(level=logging.INFO)
@@ -24,6 +26,11 @@ except ImportError:
     logger.warning("bcrypt not available, using simple hash")
 
 app = FastAPI(title="Enhanced Email Sender API", version="1.0.0")
+
+# Templates (Jinja2)
+BASE_DIR = Path(__file__).resolve().parent
+TEMPLATES_DIR = (BASE_DIR / "../admin/templates").resolve()
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 # CORS middleware
 app.add_middleware(
@@ -57,19 +64,10 @@ class SupabaseClient:
     def __init__(self):
         self.url = SUPABASE_URL
         self.key = SUPABASE_SERVICE_KEY or SUPABASE_ANON_KEY
+        
         if not self.url or not self.key:
-            logger.warning("Supabase credentials not configured - using persistent mock mode (/tmp store)")
+            logger.warning("Supabase credentials not configured - using mock mode")
             self.mock_mode = True
-            self.store_path = "/tmp/enhanced_email_sender_store.json"
-            # Default structure
-            self.mock_data = {
-                "users": [],
-                "email_campaigns": [],
-                "recipient_lists": [],
-                "user_settings": []
-            }
-            self.next_id = 1
-            self._load_store()
         else:
             self.mock_mode = False
             self.headers = {
@@ -77,41 +75,11 @@ class SupabaseClient:
                 "Authorization": f"Bearer {self.key}",
                 "Content-Type": "application/json"
             }
-
-    def _load_store(self) -> None:
-        try:
-            if os.path.exists(self.store_path):
-                with open(self.store_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    if isinstance(data, dict):
-                        # Merge existing keys safely
-                        for k in self.mock_data.keys():
-                            if isinstance(data.get(k), list):
-                                self.mock_data[k] = data.get(k)
-                        # Determine next id
-                        try:
-                            existing_ids = [int(u.get("id", 0)) for u in self.mock_data.get("users", []) if u.get("id")]
-                            if existing_ids:
-                                self.next_id = max(existing_ids) + 1
-                        except Exception:
-                            self.next_id = 1
-        except Exception as e:
-            logger.error(f"Mock store load failed: {e}")
-
-    def _save_store(self) -> None:
-        try:
-            with open(self.store_path, "w", encoding="utf-8") as f:
-                json.dump(self.mock_data, f, ensure_ascii=False)
-        except Exception as e:
-            logger.error(f"Mock store save failed: {e}")
     
     async def select(self, table: str, columns: str = "*", filters: Dict = None):
         """Select data from Supabase table"""
         if self.mock_mode:
-            data = self.mock_data.get(table, [])
-            if filters:
-                return [item for item in data if all(item.get(k) == v for k, v in filters.items())]
-            return data
+            return []
             
         url = f"{self.url}/rest/v1/{table}"
         params = {"select": columns}
@@ -133,17 +101,7 @@ class SupabaseClient:
     async def insert(self, table: str, data: Dict):
         """Insert data into Supabase table"""
         if self.mock_mode:
-            if table not in self.mock_data:
-                self.mock_data[table] = []
-            item_id = int(data.get("id") or self.next_id)
-            self.next_id = max(self.next_id, item_id + 1)
-            # Guarantee expires_at if user
-            if table == "users" and not data.get("expires_at"):
-                data["expires_at"] = (datetime.utcnow() + timedelta(days=30)).isoformat()
-            new_item = {"id": item_id, **data}
-            self.mock_data[table].append(new_item)
-            self._save_store()
-            return [new_item]
+            return [{"id": 1, **data}]
             
         url = f"{self.url}/rest/v1/{table}"
         
@@ -160,16 +118,6 @@ class SupabaseClient:
     async def update(self, table: str, data: Dict, filters: Dict):
         """Update data in Supabase table"""
         if self.mock_mode:
-            items = self.mock_data.get(table, [])
-            for item in items:
-                match = True
-                for k, v in filters.items():
-                    if item.get(k) != v:
-                        match = False
-                        break
-                if match:
-                    item.update(data)
-            self._save_store()
             return [data]
             
         url = f"{self.url}/rest/v1/{table}"
@@ -195,14 +143,6 @@ class SupabaseClient:
     async def delete(self, table: str, filters: Dict):
         """Delete data from Supabase table"""
         if self.mock_mode:
-            items = self.mock_data.get(table, [])
-            def _matches(item: Dict[str, Any]) -> bool:
-                for k, v in filters.items():
-                    if item.get(k) != v:
-                        return False
-                return True
-            self.mock_data[table] = [item for item in items if not _matches(item)]
-            self._save_store()
             return True
             
         url = f"{self.url}/rest/v1/{table}"
@@ -860,219 +800,65 @@ async def admin_logout():
 
 @app.get("/admin/dashboard", response_class=HTMLResponse)
 async def admin_dashboard(request: Request, admin: bool = Depends(verify_admin_session)):
-    """Admin dashboard with full user management"""
+    """Admin dashboard: render Jinja template with users and stats"""
     try:
-        # Fetch all users
-        users = await supabase.select("users") or []
-        
-        # Calculate days remaining for each user
-        for user in users:
-            if user.get("expires_at"):
-                try:
-                    expiry = datetime.fromisoformat(user["expires_at"].replace('Z', '+00:00'))
-                    days_left = (expiry - datetime.utcnow()).days
-                    user["days_remaining"] = max(0, days_left)
-                except:
-                    user["days_remaining"] = 0
-            else:
-                user["days_remaining"] = 0
-        
-        # Calculate stats
-        total_users = len(users)
-        active_users = sum(1 for u in users if u.get("is_active") and u.get("days_remaining", 0) > 0)
-        expired_users = sum(1 for u in users if u.get("days_remaining", 0) <= 0)
-        
-        campaigns = await supabase.select("email_campaigns") or []
-        total_campaigns = len(campaigns)
-        
-        # Get success/error messages from query params
-        success_msg = request.query_params.get('success', '')
-        error_msg = request.query_params.get('error', '')
-        
-        # Build users HTML rows
-        users_html = ""
-        for user in users:
-            sub_type = user.get("subscription_type", "free")
-            badge_class = "success" if sub_type == "premium" else ("primary" if sub_type == "enterprise" else "warning")
-            days_remaining = user.get("days_remaining", 0)
-            days_badge = "danger" if days_remaining <= 0 else ("warning" if days_remaining <= 7 else "success")
-            is_active = user.get("is_active") and days_remaining > 0
-            status_badge = "success" if is_active else "danger"
-            status_text = "Active" if is_active else "Inactive"
-            expires_at = user.get("expires_at", "N/A")[:10] if user.get("expires_at") else "N/A"
-            
-            users_html += f"""
-            <tr>
-                <td>{user.get("id")}</td>
-                <td><strong>{user.get("username")}</strong></td>
-                <td>{user.get("email") or "N/A"}</td>
-                <td><span class="badge badge-{badge_class}">{sub_type.title()}</span></td>
-                <td>{expires_at}</td>
-                <td><span class="badge badge-{days_badge}">{days_remaining} days</span></td>
-                <td><span class="badge badge-{status_badge}">{status_text}</span></td>
-                <td>
-                    <div class="actions">
-                        <button onclick="extendSubscription({user.get('id')})" class="btn btn-warning btn-sm">➕ Extend</button>
-                        <button onclick="setExpiration({user.get('id')})" class="btn btn-primary btn-sm">📅 Set Date</button>
-                        <button onclick="deleteUser({user.get('id')}, '{user.get('username')}')" class="btn btn-danger btn-sm">🗑️ Delete</button>
-                    </div>
-                </td>
-            </tr>
-            """
-        
-        alert_html = ""
-        if success_msg:
-            alert_html = f'<div class="alert alert-success">✅ {success_msg}</div>'
-        if error_msg:
-            alert_html = f'<div class="alert alert-danger">❌ {error_msg}</div>'
-        
-        return HTMLResponse(f"""
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - Enhanced Email Sender</title>
-    <style>
-        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-        body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8f9fa; line-height: 1.6; }}
-        .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem 0; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
-        .header-content {{ max-width: 1200px; margin: 0 auto; padding: 0 2rem; display: flex; justify-content: space-between; align-items: center; }}
-        .header h1 {{ font-size: 1.8rem; font-weight: 600; }}
-        .container {{ max-width: 1200px; margin: 0 auto; padding: 2rem; }}
-        .card {{ background: white; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; box-shadow: 0 2px 15px rgba(0,0,0,0.08); border: 1px solid #e9ecef; }}
-        .card h2 {{ color: #495057; margin-bottom: 1rem; font-size: 1.3rem; }}
-        .stats-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }}
-        .stat-card {{ background: white; padding: 1.5rem; border-radius: 12px; text-align: center; box-shadow: 0 2px 15px rgba(0,0,0,0.08); border-left: 4px solid; }}
-        .stat-card.users {{ border-left-color: #28a745; }}
-        .stat-card.active {{ border-left-color: #007bff; }}
-        .stat-card.expired {{ border-left-color: #dc3545; }}
-        .stat-card.campaigns {{ border-left-color: #ffc107; }}
-        .stat-number {{ font-size: 2rem; font-weight: bold; color: #495057; }}
-        .stat-label {{ color: #6c757d; font-size: 0.9rem; margin-top: 0.5rem; }}
-        .add-user-form {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; align-items: end; margin-bottom: 1.5rem; }}
-        .form-group {{ display: flex; flex-direction: column; }}
-        .form-group label {{ margin-bottom: 0.25rem; font-weight: 500; color: #495057; font-size: 0.9rem; }}
-        .form-group input, .form-group select {{ padding: 0.5rem; border: 1px solid #ced4da; border-radius: 6px; font-size: 0.9rem; }}
-        .table {{ width: 100%; border-collapse: collapse; margin-top: 1rem; }}
-        .table th, .table td {{ padding: 0.75rem; text-align: left; border-bottom: 1px solid #dee2e6; }}
-        .table th {{ background: #f8f9fa; font-weight: 600; color: #495057; font-size: 0.9rem; }}
-        .table tbody tr:hover {{ background: #f8f9fa; }}
-        .badge {{ padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }}
-        .badge-success {{ background: #d4edda; color: #155724; }}
-        .badge-danger {{ background: #f8d7da; color: #721c24; }}
-        .badge-warning {{ background: #fff3cd; color: #856404; }}
-        .badge-primary {{ background: #cce5ff; color: #004085; }}
-        .btn {{ padding: 0.5rem 1rem; border: none; border-radius: 6px; font-size: 0.9rem; cursor: pointer; text-decoration: none; display: inline-block; transition: all 0.3s ease; }}
-        .btn-sm {{ padding: 0.25rem 0.5rem; font-size: 0.8rem; }}
-        .btn-success {{ background: #28a745; color: white; }}
-        .btn-success:hover {{ background: #218838; }}
-        .btn-primary {{ background: #007bff; color: white; }}
-        .btn-primary:hover {{ background: #0056b3; }}
-        .btn-warning {{ background: #ffc107; color: #212529; }}
-        .btn-warning:hover {{ background: #e0a800; }}
-        .btn-danger {{ background: #dc3545; color: white; }}
-        .btn-danger:hover {{ background: #c82333; }}
-        .btn-outline {{ background: transparent; color: white; border: 1px solid white; }}
-        .btn-outline:hover {{ background: white; color: #667eea; }}
-        .alert {{ padding: 0.75rem 1rem; margin-bottom: 1rem; border: 1px solid transparent; border-radius: 6px; }}
-        .alert-success {{ color: #155724; background-color: #d4edda; border-color: #c3e6cb; }}
-        .alert-danger {{ color: #721c24; background-color: #f8d7da; border-color: #f5c6cb; }}
-        .actions {{ display: flex; gap: 0.5rem; flex-wrap: wrap; }}
-    </style>
-</head>
-<body>
-    <div class="header">
-        <div class="header-content">
-            <div>
-                <h1>📧 Enhanced Email Sender</h1>
-                <p>Administration Dashboard</p>
-            </div>
-            <div><a href="/admin/logout" class="btn btn-outline">🚪 Logout</a></div>
-        </div>
-    </div>
-    <div class="container">
-        {alert_html}
-        <div class="stats-grid">
-            <div class="stat-card users"><div class="stat-number">{total_users}</div><div class="stat-label">Total Users</div></div>
-            <div class="stat-card active"><div class="stat-number">{active_users}</div><div class="stat-label">Active Users</div></div>
-            <div class="stat-card expired"><div class="stat-number">{expired_users}</div><div class="stat-label">Expired Users</div></div>
-            <div class="stat-card campaigns"><div class="stat-number">{total_campaigns}</div><div class="stat-label">Total Campaigns</div></div>
-        </div>
-        <div class="card">
-            <h2>➕ Add New User</h2>
-            <form method="post" action="/admin/users/add" class="add-user-form">
-                <div class="form-group"><label for="username">Username</label><input type="text" id="username" name="username" required></div>
-                <div class="form-group"><label for="password">Password</label><input type="password" id="password" name="password" required></div>
-                <div class="form-group"><label for="email">Email</label><input type="email" id="email" name="email"></div>
-                <div class="form-group"><label for="subscription_type">Subscription</label>
-                    <select id="subscription_type" name="subscription_type">
-                        <option value="free">Free</option>
-                        <option value="premium">Premium</option>
-                        <option value="enterprise">Enterprise</option>
-                    </select>
-                </div>
-                <div class="form-group"><label for="expiration_days">Days</label><input type="number" id="expiration_days" name="expiration_days" value="30" min="1" max="3650"></div>
-                <div class="form-group"><button type="submit" class="btn btn-success">Add User</button></div>
-            </form>
-        </div>
-        <div class="card">
-            <h2>👥 Registered Users ({total_users})</h2>
-            <div class="table-responsive">
-                <table class="table">
-                    <thead><tr><th>ID</th><th>Username</th><th>Email</th><th>Subscription</th><th>Expires</th><th>Days Left</th><th>Status</th><th>Actions</th></tr></thead>
-                    <tbody>{users_html}</tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-    <script>
-        function extendSubscription(userId) {{
-            const days = prompt("How many days to extend the subscription?", "30");
-            if (days && parseInt(days) > 0) {{
-                fetch(`/admin/users/${{userId}}/extend`, {{
-                    method: 'POST', headers: {{'Content-Type': 'application/json'}},
-                    body: JSON.stringify({{days: parseInt(days)}})
-                }})
-                .then(response => response.json())
-                .then(data => {{ if (data.success) {{ alert(data.message); location.reload(); }} else {{ alert('Error: ' + (data.detail || 'Failed')); }} }})
-                .catch(error => alert('Error: ' + error.message));
-            }}
-        }}
-        function setExpiration(userId) {{
-            const date = prompt("Set expiration date (YYYY-MM-DD):", "2025-12-31");
-            const subscriptionType = prompt("Subscription type:", "premium");
-            if (date && subscriptionType) {{
-                fetch(`/admin/users/${{userId}}/set-expiration`, {{
-                    method: 'POST', headers: {{'Content-Type': 'application/json'}},
-                    body: JSON.stringify({{expiration_date: date, subscription_type: subscriptionType}})
-                }})
-                .then(response => response.json())
-                .then(data => {{ if (data.success) {{ alert(data.message); location.reload(); }} else {{ alert('Error: ' + (data.detail || 'Failed')); }} }})
-                .catch(error => alert('Error: ' + error.message));
-            }}
-        }}
-        function deleteUser(userId, username) {{
-            if (confirm(`Delete user "${{username}}"?\\n\\nThis will delete all their data and cannot be undone!`)) {{
-                fetch(`/admin/users/${{userId}}`, {{method: 'DELETE'}})
-                .then(response => response.json())
-                .then(data => {{ if (data.success) {{ alert(data.message); location.reload(); }} else {{ alert('Error: ' + (data.detail || 'Failed')); }} }})
-                .catch(error => alert('Error: ' + error.message));
-            }}
-        }}
-    </script>
-</body>
-</html>
-        """)
+        # Fetch users
+        try:
+            db_users = await supabase.select("users")
+        except Exception as e:
+            logger.error(f"Failed to load users: {e}")
+            db_users = []
+
+        # Prepare users for template (normalize fields + derived values)
+        prepared_users = []
+        now = datetime.utcnow()
+        for u in db_users:
+            expires_at = u.get("expires_at") or u.get("subscription_end")
+            # Normalize ISO format and compute days remaining
+            days_remaining = calculate_days_remaining(expires_at) if expires_at else 0
+            prepared = {
+                **u,
+                "subscription_type": u.get("subscription_type") or u.get("subscription_tier") or "free",
+                "expires_at": expires_at,
+                "days_remaining": days_remaining,
+                "is_active": bool(u.get("is_active", True)),
+            }
+            prepared_users.append(prepared)
+
+        # Stats
+        total_users = len(prepared_users)
+        active_users = sum(1 for u in prepared_users if u.get("is_active") and u.get("days_remaining", 0) > 0)
+        expired_users = total_users - active_users
+        try:
+            campaigns = await supabase.select("email_campaigns")
+            total_campaigns = len(campaigns)
+        except Exception:
+            total_campaigns = 0
+
+        stats = {
+            "total_users": total_users,
+            "active_users": active_users,
+            "expired_users": expired_users,
+            "total_campaigns": total_campaigns,
+        }
+
+        # Query messages
+        success_msg = request.query_params.get("success")
+        error_msg = request.query_params.get("error")
+
+        return templates.TemplateResponse(
+            "admin_dashboard.html",
+            {
+                "request": request,
+                "users": prepared_users,
+                "stats": stats,
+                "success": success_msg,
+                "error": error_msg,
+            },
+        )
     except Exception as e:
         logger.error(f"Admin dashboard error: {e}")
-        return HTMLResponse(f"""
-        <html><body style="font-family: Arial; padding: 50px; text-align: center;">
-        <h1>⚠️ Dashboard Error</h1>
-        <p>Error loading dashboard: {str(e)}</p>
-        <p><a href="/admin/logout">Logout</a></p>
-        </body></html>
-        """)
+        raise HTTPException(status_code=500, detail="Dashboard error")
 
 @app.post("/admin/users/add")
 async def admin_add_user(
@@ -1081,22 +867,11 @@ async def admin_add_user(
     password: str = Form(),
     email: str = Form(""),
     subscription_type: str = Form("free"),
-    expiration_days: int = Form(30)
+    expiration_days: int = Form(30),
+    admin: bool = Depends(verify_admin_session)
 ):
     """Add new user (admin only)"""
     try:
-        # Verify admin session manually to avoid dependency issues
-        token = request.cookies.get("admin_token")
-        if not token:
-            return RedirectResponse(url="/admin?error=Not authenticated", status_code=302)
-        
-        try:
-            payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
-            if payload.get("role") != "admin":
-                return RedirectResponse(url="/admin?error=Not authorized", status_code=302)
-        except:
-            return RedirectResponse(url="/admin?error=Invalid session", status_code=302)
-        
         # Check if user exists
         existing = await supabase.select("users", filters={"username": username})
         if existing:
@@ -1111,7 +886,7 @@ async def admin_add_user(
         user_data = {
             "username": username,
             "hashed_password": hash_password(password),
-            "email": email or None,
+            "email": email,
             "subscription_type": subscription_type,
             "expires_at": expires_at,
             "is_active": True,
@@ -1136,36 +911,17 @@ async def admin_add_user(
 @app.post("/admin/users/{user_id}/extend")
 async def admin_extend_subscription(
     user_id: int, 
-    request: Request
+    extend_data: ExtendSubscription,
+    admin: bool = Depends(verify_admin_session)
 ):
     """Extend user subscription"""
     try:
-        # Verify admin
-        token = request.cookies.get("admin_token")
-        if not token:
-            return JSONResponse({"success": False, "detail": "Not authenticated"}, status_code=401)
-        try:
-            payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
-            if payload.get("role") != "admin":
-                return JSONResponse({"success": False, "detail": "Not authorized"}, status_code=403)
-        except:
-            return JSONResponse({"success": False, "detail": "Invalid session"}, status_code=401)
-        
-        # Get request body
-        body = await request.json()
-        days = body.get("days", 30)
-        
         users = await supabase.select("users", filters={"id": user_id})
         if not users:
-            return JSONResponse({"success": False, "detail": "User not found"}, status_code=404)
+            raise HTTPException(status_code=404, detail="User not found")
         
-        user = users[0]
-        if user.get("expires_at"):
-            current_expiry = datetime.fromisoformat(user["expires_at"].replace('Z', '+00:00'))
-        else:
-            current_expiry = datetime.utcnow()
-        
-        new_expiry = current_expiry + timedelta(days=days)
+        current_expiry = datetime.fromisoformat(users[0]["expires_at"])
+        new_expiry = current_expiry + timedelta(days=extend_data.days)
         
         await supabase.update("users", 
                             {"expires_at": new_expiry.isoformat()}, 
@@ -1173,73 +929,47 @@ async def admin_extend_subscription(
         
         return {
             "success": True,
-            "message": f"Subscription extended by {days} days",
+            "message": f"Subscription extended by {extend_data.days} days",
             "new_expiry": new_expiry.strftime("%Y-%m-%d")
         }
         
     except Exception as e:
         logger.error(f"Extend subscription error: {e}")
-        return JSONResponse({"success": False, "detail": str(e)}, status_code=500)
+        raise HTTPException(status_code=500, detail="Failed to extend subscription")
 
 @app.post("/admin/users/{user_id}/set-expiration")
 async def admin_set_expiration(
     user_id: int,
-    request: Request
+    expiration_data: SetExpiration,
+    admin: bool = Depends(verify_admin_session)
 ):
     """Set user expiration date"""
     try:
-        # Verify admin
-        token = request.cookies.get("admin_token")
-        if not token:
-            return JSONResponse({"success": False, "detail": "Not authenticated"}, status_code=401)
-        try:
-            payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
-            if payload.get("role") != "admin":
-                return JSONResponse({"success": False, "detail": "Not authorized"}, status_code=403)
-        except:
-            return JSONResponse({"success": False, "detail": "Invalid session"}, status_code=401)
-        
-        # Get request body
-        body = await request.json()
-        expiration_date = body.get("expiration_date")
-        subscription_type = body.get("subscription_type", "premium")
-        
-        expires_at = datetime.strptime(expiration_date, "%Y-%m-%d").isoformat()
+        expires_at = datetime.strptime(expiration_data.expiration_date, "%Y-%m-%d").isoformat()
         
         await supabase.update("users", {
             "expires_at": expires_at,
-            "subscription_type": subscription_type,
+            "subscription_type": expiration_data.subscription_type,
             "is_active": True
         }, {"id": user_id})
         
         return {
             "success": True,
-            "message": f"Expiration set to {expiration_date}",
-            "subscription_type": subscription_type
+            "message": f"Expiration set to {expiration_data.expiration_date}",
+            "subscription_type": expiration_data.subscription_type
         }
         
     except Exception as e:
         logger.error(f"Set expiration error: {e}")
-        return JSONResponse({"success": False, "detail": str(e)}, status_code=500)
+        raise HTTPException(status_code=500, detail="Failed to set expiration")
 
 @app.delete("/admin/users/{user_id}")
 async def admin_delete_user(
-    user_id: int,
-    request: Request
+    user_id: int, 
+    admin: bool = Depends(verify_admin_session)
 ):
     """Delete user and all their data"""
     try:
-        # Verify admin
-        token = request.cookies.get("admin_token")
-        if not token:
-            return JSONResponse({"success": False, "detail": "Not authenticated"}, status_code=401)
-        try:
-            payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
-            if payload.get("role") != "admin":
-                return JSONResponse({"success": False, "detail": "Not authorized"}, status_code=403)
-        except:
-            return JSONResponse({"success": False, "detail": "Invalid session"}, status_code=401)
-        
         # Delete user's recipient lists
         await supabase.delete("recipient_lists", {"user_id": user_id})
         
@@ -1256,7 +986,7 @@ async def admin_delete_user(
         
     except Exception as e:
         logger.error(f"Delete user error: {e}")
-        return JSONResponse({"success": False, "detail": str(e)}, status_code=500)
+        raise HTTPException(status_code=500, detail="Failed to delete user")
 
 @app.get("/admin/users/{user_id}/data", response_class=HTMLResponse)
 async def admin_view_user_data(
