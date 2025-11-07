@@ -11,6 +11,10 @@ from datetime import datetime, timedelta
 import logging
 import httpx
 
+# Configure logging FIRST
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Try to import bcrypt, use fallback if not available
 try:
     import bcrypt
@@ -18,10 +22,6 @@ try:
 except ImportError:
     BCRYPT_AVAILABLE = False
     logger.warning("bcrypt not available, using simple hash")
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Enhanced Email Sender API", version="1.0.0")
 
@@ -846,28 +846,6 @@ async def admin_dashboard(request: Request, admin: bool = Depends(verify_admin_s
     </body>
     </html>
     """)
-        
-        stats = {
-            "total_users": total_users,
-            "active_users": active_users,
-            "expired_users": expired_users,
-            "total_campaigns": total_campaigns
-        }
-        
-        success_msg = request.query_params.get('success')
-        error_msg = request.query_params.get('error')
-        
-        return templates.TemplateResponse("admin_dashboard.html", {
-            "request": request,
-            "users": users,
-            "stats": stats,
-            "success": success_msg,
-            "error": error_msg
-        })
-        
-    except Exception as e:
-        logger.error(f"Admin dashboard error: {e}")
-        raise HTTPException(status_code=500, detail="Dashboard error")
 
 @app.post("/admin/users/add")
 async def admin_add_user(
@@ -878,7 +856,6 @@ async def admin_add_user(
     subscription_type: str = Form("free"),
     expiration_days: int = Form(30),
     admin: bool = Depends(verify_admin_session)
-):
 ):
     """Add new user (admin only)"""
     try:
