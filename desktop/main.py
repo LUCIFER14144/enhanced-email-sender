@@ -1101,11 +1101,11 @@ def main():
     print("Starting Enhanced Email Sender...")
     cloud_sync = create_cloud_login_window()
     
-    # If user clicked exit or closed the window, quit application
-    if cloud_sync is None:
-        print("Login cancelled. Exiting...")
+    # Exit if user didn't authenticate
+    if not cloud_sync:
+        print("Cloud authentication required. Exiting...")
         return
-        
+    
     # Create main application
     root = tk.Tk()
     app = EnhancedEmailSenderApp(root)

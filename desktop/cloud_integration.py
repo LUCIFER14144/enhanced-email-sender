@@ -24,8 +24,8 @@ logger = logging.getLogger(__name__)
 class CloudSync:
     """Handle cloud synchronization and authentication"""
     
-    def __init__(self):
-        self.api_base_url = "https://perfected-vercelblasting.vercel.app"
+    def __init__(self, api_base_url: str = None):
+        self.api_base_url = api_base_url or "https://perfected-vercelblasting.vercel.app"
         self.token = None
         self.user_data = None
         self.expiration_check_interval = 300  # Check every 5 minutes
@@ -380,7 +380,7 @@ def create_cloud_login_window() -> Optional[CloudSync]:
         status_label.config(text="🔄 Authenticating...", foreground="blue")
         root.update()
         
-        # Create cloud sync instance
+        # Create cloud sync instance with production URL
         cloud_sync = CloudSync()
         
         # Try authentication
@@ -394,12 +394,26 @@ def create_cloud_login_window() -> Optional[CloudSync]:
                                    "Your subscription has expired. Please contact admin to renew.")
                 return
             
-            # Show success
+            # Show success and warnings
             status_label.config(text="✅ Authentication successful!", foreground="green")
+            
+            if days_remaining <= 7:
+                messagebox.showwarning("Subscription Expiring", 
+                                     f"⚠️ Your subscription expires in {days_remaining} days!")
+            elif days_remaining <= 30:
+                messagebox.showinfo("Subscription Notice", 
+                                  f"ℹ️ Your subscription expires in {days_remaining} days.")
+            
             result["cloud_sync"] = cloud_sync
             root.quit()
+            
         else:
             status_label.config(text="❌ Authentication failed", foreground="red")
+    
+    def exit_app():
+        """Exit the application"""
+        result["cloud_sync"] = None
+        root.quit()
     
     # Buttons
     button_frame = ttk.Frame(main_frame)
@@ -408,7 +422,7 @@ def create_cloud_login_window() -> Optional[CloudSync]:
     login_btn = ttk.Button(button_frame, text="🚀 Sign In", command=try_login)
     login_btn.pack(side=tk.LEFT, padx=(0, 10))
     
-    exit_btn = ttk.Button(button_frame, text="❌ Exit", command=lambda: (result.update({"cloud_sync": None}), root.quit()))
+    exit_btn = ttk.Button(button_frame, text="❌ Exit", command=exit_app)
     exit_btn.pack(side=tk.RIGHT)
     
     # Info section
