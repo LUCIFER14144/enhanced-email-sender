@@ -44,6 +44,94 @@ JWT_SECRET = os.getenv("JWT_SECRET", "your-super-secret-jwt-key-change-in-produc
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
 
+# Admin Routes
+@app.get("/admin")
+async def admin_root(request: Request):
+    """Redirect to admin dashboard if authenticated, otherwise to login"""
+    token = request.cookies.get("admin_token")
+    if token:
+        try:
+            jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+            return RedirectResponse(url="/admin/dashboard")
+        except:
+            pass
+    return RedirectResponse(url="/admin/login")
+
+@app.get("/admin/dashboard", response_class=HTMLResponse)
+async def admin_dashboard(request: Request):
+    """Admin dashboard page"""
+    token = request.cookies.get("admin_token")
+    if not token:
+        return RedirectResponse(url="/admin/login")
+    
+    try:
+        jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+        return HTMLResponse(content="""
+        <!DOCTYPE html>
+        <html>
+            <head>
+                <title>Admin Dashboard</title>
+                <style>
+                    body { font-family: Arial; margin: 20px; }
+                    .header { padding: 20px 0; border-bottom: 1px solid #eee; }
+                    .container { max-width: 1200px; margin: 0 auto; }
+                    .btn { 
+                        padding: 10px 20px; 
+                        background: #4CAF50; 
+                        color: white; 
+                        border: none; 
+                        cursor: pointer;
+                        margin: 5px;
+                        display: inline-block;
+                        text-decoration: none;
+                    }
+                    .btn:hover { background: #45a049; }
+                    .section { margin: 20px 0; }
+                    .users-table, .campaigns { margin-top: 20px; }
+                    .settings-panel { margin-top: 20px; }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <div class="container">
+                        <h1>Admin Dashboard</h1>
+                        <a href="/admin/logout" class="btn" style="float: right;">Logout</a>
+                    </div>
+                </div>
+                <div class="container">
+                    <div class="section">
+                        <h2>User Management</h2>
+                        <button class="btn" onclick="document.getElementById('addUserModal').style.display='block'">Add New User</button>
+                        <div class="users-table">
+                            <!-- Users will be loaded here -->
+                        </div>
+                    </div>
+                    
+                    <div class="section">
+                        <h2>Email Campaigns</h2>
+                        <button class="btn" onclick="document.getElementById('createCampaignModal').style.display='block'">Create New Campaign</button>
+                        <div class="campaigns">
+                            <!-- Campaigns will be loaded here -->
+                        </div>
+                    </div>
+                    
+                    <div class="section">
+                        <h2>System Configuration</h2>
+                        <button class="btn" onclick="document.getElementById('systemSettingsModal').style.display='block'">System Settings</button>
+                        <div class="settings-panel">
+                            <!-- Settings will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Add modals here -->
+                <!-- Your existing modals code will be here -->
+            </body>
+        </html>
+        """)
+    except:
+        return RedirectResponse(url="/admin/login")
+
 # User Management Routes
 @app.post("/api/admin/users")
 async def create_user(user: AdminUser, request: Request):
