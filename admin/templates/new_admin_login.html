@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login - Email Sender</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        html, body {
+            height: 100%;
+        }
+        body {
+            display: flex;
+            align-items: center;
+            padding-top: 40px;
+            padding-bottom: 40px;
+            background-color: #f5f5f5;
+        }
+        .form-signin {
+            width: 100%;
+            max-width: 330px;
+            padding: 15px;
+            margin: auto;
+        }
+        .form-signin .form-floating:focus-within {
+            z-index: 2;
+        }
+        .form-signin input[type="text"] {
+            margin-bottom: -1px;
+            border-bottom-right-radius: 0;
+            border-bottom-left-radius: 0;
+        }
+        .form-signin input[type="password"] {
+            margin-bottom: 10px;
+            border-top-left-radius: 0;
+            border-top-right-radius: 0;
+        }
+    </style>
+</head>
+<body class="text-center">
+    <main class="form-signin">
+        <form action="/admin/login" method="POST">
+            <img class="mb-4" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4MCIgaGVpZ2h0PSI4MCIgZmlsbD0iY3VycmVudENvbG9yIiBjbGFzcz0iYmkgYmktZW52ZWxvcGUtY2hlY2siIHZpZXdCb3g9IjAgMCAxNiAxNiI+CiAgPHBhdGggZD0iTTIgMmEyIDIgMCAwIDAgLTIgMnY4LjAxQTIgMiAwIDAgMCAyIDE0aDUuNWEuNS41IDAgMCAwIDAtMUgyYS4xLjEgMCAwIDEgLS4xLS4xVjRhLjEuMSAwIDAgMSAuMS0uMWgxMmEuMS4xIDAgMCAxIC4xLjF2My4wMWEuNS41IDAgMCAwIDEgMFY0YTIgMiAwIDAgMCAtMi0ySDJ6Ii8+CiAgPHBhdGggZD0iTTIuMDUgOGE0LjQ5IDQuNDkgMCAwIDEgMS45LTMuNDJjLjU2LS40MSAxLjMtLjcgMi4xNC0uN3MxLjU4LjI5IDIuMTQuN2MuNTYuNDEuODYuOTIuODYgMS40OHMtLjMgMS4wNy0uODYgMS40OGMtLjU2LjQxLTEuMyAuNy0yLjE0LjdzLTEuNTgtLjI5LTIuMTQtLjdjLS41Ni0uNDEtLjg2LS45Mi0uODYtMS40OHptOSA2YS41LjUgMCAwIDEtLjcxIDBMOC40NCAxMi4wNmwtLjcxLjcxYS41LjUgMCAwIDEtLjcxLS43MWwxLjA2LTEuMDYtMS4wNi0xLjA2YS41LjUgMCAxIDEgLjcxLS43MWwuNzEuNzFMMTAuMjkgMTFhLjUuNSAwIDAgMSAwIC43MXoiLz4KPC9zdmc+Cg==" alt="Email Sender Logo">
+            
+            <h1 class="h3 mb-3 fw-normal">Admin Login</h1>
+            
+            <div class="form-floating">
+                <input type="text" class="form-control" id="username" name="username" placeholder="Username" required>
+                <label for="username">Username</label>
+            </div>
+            <div class="form-floating">
+                <input type="password" class="form-control" id="password" name="password" placeholder="Password" required>
+                <label for="password">Password</label>
+            </div>
+
+            <div class="w-100 mb-2">
+                <div id="errorAlert" class="alert alert-danger d-none">
+                    Invalid username or password
+                </div>
+            </div>
+
+            <button class="w-100 btn btn-lg btn-primary" type="submit">Sign in</button>
+        </form>
+    </main>
+
+    <script>
+        // Show error message if present in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('error')) {
+            document.getElementById('errorAlert').classList.remove('d-none');
+        }
+    </script>
+</body>
+</html>

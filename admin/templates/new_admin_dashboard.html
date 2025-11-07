@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Email Sender</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/admin/dashboard">Email Sender Admin</a>
+            <div class="d-flex">
+                <a href="/admin/logout" class="btn btn-outline-light">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h4 class="card-title">Quick Stats</h4>
+                        <div class="row g-4">
+                            <div class="col-md-3">
+                                <div class="p-3 bg-light rounded">
+                                    <h6>Total Users</h6>
+                                    <h3 id="totalUsers">...</h3>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="p-3 bg-light rounded">
+                                    <h6>Active Users</h6>
+                                    <h3 id="activeUsers">...</h3>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="p-3 bg-light rounded">
+                                    <h6>Total Emails Sent</h6>
+                                    <h3 id="totalEmails">...</h3>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="p-3 bg-light rounded">
+                                    <h6>Active Campaigns</h6>
+                                    <h3 id="activeCampaigns">...</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h4 class="card-title mb-0">User Management</h4>
+                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                                <i class="bi bi-person-plus"></i> Add User
+                            </button>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-striped" id="usersTable">
+                                <thead>
+                                    <tr>
+                                        <th>Username</th>
+                                        <th>Email</th>
+                                        <th>Subscription</th>
+                                        <th>Daily Limit</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Users will be loaded here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add User Modal -->
+    <div class="modal fade" id="addUserModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New User</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addUserForm">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="username" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="password" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="subscription" class="form-label">Subscription Tier</label>
+                            <select class="form-select" id="subscription">
+                                <option value="free">Free</option>
+                                <option value="basic">Basic</option>
+                                <option value="premium">Premium</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="dailyLimit" class="form-label">Daily Email Limit</label>
+                            <input type="number" class="form-control" id="dailyLimit" value="100">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="createUser()">Create User</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Load everything on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadUsers();
+            loadTemplates();
+            loadSettings();
+            updateStats();
+        });
+
+        async function loadUsers() {
+            try {
+                const response = await fetch('/api/admin/users');
+                if (!response.ok) throw new Error('Failed to load users');
+                const users = await response.json();
+                
+                const tbody = document.querySelector('#usersTable tbody');
+                tbody.innerHTML = '';
+                
+                users.forEach(user => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${user.username}</td>
+                        <td>${user.email}</td>
+                        <td>
+                            <span class="badge bg-${getBadgeColor(user.subscription_tier)}">
+                                ${user.subscription_tier}
+                            </span>
+                        </td>
+                        <td>${user.daily_email_limit}</td>
+                        <td>
+                            ${user.is_active ? 
+                                '<span class="badge bg-success">Active</span>' : 
+                                '<span class="badge bg-danger">Inactive</span>'}
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-warning" onclick="editUser('${user.id}')">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteUser('${user.id}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+                updateStats();
+            } catch (error) {
+                console.error('Error loading users:', error);
+                showAlert('Failed to load users. Please try again.', 'danger');
+            }
+        }
+
+        function getBadgeColor(tier) {
+            switch(tier) {
+                case 'premium':
+                    return 'primary';
+                case 'basic':
+                    return 'success';
+                default:
+                    return 'secondary';
+            }
+        }
+
+        async function createUser() {
+            const formData = {
+                username: document.getElementById('username').value,
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value,
+                subscription_tier: document.getElementById('subscription').value,
+                daily_email_limit: parseInt(document.getElementById('dailyLimit').value)
+            };
+
+            try {
+                const response = await fetch('/api/admin/users', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to create user');
+                }
+
+                await loadUsers();
+                document.getElementById('addUserForm').reset();
+                bootstrap.Modal.getInstance(document.getElementById('addUserModal')).hide();
+                showAlert('User created successfully!', 'success');
+            } catch (error) {
+                console.error('Error creating user:', error);
+                showAlert(error.message, 'danger');
+            }
+        }
+
+        async function updateStats() {
+            try {
+                const stats = await (await fetch('/api/admin/stats')).json();
+                
+                document.getElementById('totalUsers').textContent = stats.total_users.toLocaleString();
+                document.getElementById('activeUsers').textContent = stats.active_users.toLocaleString();
+                document.getElementById('totalEmails').textContent = stats.total_emails.toLocaleString();
+                document.getElementById('activeCampaigns').textContent = stats.campaigns.toLocaleString();
+            } catch (error) {
+                console.error('Error updating stats:', error);
+                showAlert('Failed to load stats', 'danger');
+            }
+        }
+        
+        async function loadTemplates() {
+            try {
+                const response = await fetch('/api/admin/templates');
+                if (!response.ok) throw new Error('Failed to load templates');
+                const templates = await response.json();
+                
+                const templatesList = document.getElementById('templatesList');
+                if (templatesList) {
+                    templatesList.innerHTML = '';
+                    templates.forEach(template => {
+                        const item = document.createElement('div');
+                        item.className = 'list-group-item';
+                        item.innerHTML = `
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="mb-1">${template.template_name}</h6>
+                                <div>
+                                    <button class="btn btn-sm btn-outline-primary me-2" onclick="editTemplate(${template.id})">
+                                        Edit
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteTemplate(${template.id})">
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                            <p class="mb-1">${template.subject}</p>
+                        `;
+                        templatesList.appendChild(item);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading templates:', error);
+                showAlert('Failed to load templates', 'danger');
+            }
+        }
+        
+        async function loadSettings() {
+            try {
+                const response = await fetch('/api/admin/settings');
+                if (!response.ok) throw new Error('Failed to load settings');
+                const settings = await response.json();
+                
+                // Update settings form if it exists
+                const form = document.getElementById('settingsForm');
+                if (form) {
+                    Object.keys(settings).forEach(key => {
+                        const input = form.querySelector(`[name="${key}"]`);
+                        if (input) {
+                            if (input.type === 'checkbox') {
+                                input.checked = settings[key];
+                            } else {
+                                input.value = settings[key];
+                            }
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading settings:', error);
+                showAlert('Failed to load settings', 'danger');
+            }
+        }
+        
+        async function saveSettings(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            const settings = {};
+            
+            formData.forEach((value, key) => {
+                if (form[key].type === 'checkbox') {
+                    settings[key] = form[key].checked;
+                } else if (form[key].type === 'number') {
+                    settings[key] = parseInt(value);
+                } else {
+                    settings[key] = value;
+                }
+            });
+            
+            try {
+                const response = await fetch('/api/admin/settings', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(settings)
+                });
+                
+                if (!response.ok) throw new Error('Failed to save settings');
+                showAlert('Settings saved successfully', 'success');
+            } catch (error) {
+                console.error('Error saving settings:', error);
+                showAlert('Failed to save settings', 'danger');
+            }
+        }
+
+        function showAlert(message, type = 'info') {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 end-0 m-3`;
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(alertDiv);
+            setTimeout(() => alertDiv.remove(), 5000);
+        }
+    </script>
+</body>
+</html>
+        <!-- User Management Section -->
+        <div class="section">
+            <h2>User Management</h2>
+            <button class="btn" onclick="showAddUserModal()">Add New User</button>
+            <div id="users-table">
+                <!-- User table will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Campaigns Section -->
+        <div class="section">
+            <h2>Email Campaigns</h2>
+            <button class="btn" onclick="showCreateCampaignModal()">Create Campaign</button>
+            <div id="campaigns-table">
+                <!-- Campaigns table will be loaded here -->
+            </div>
+        </div>
+
+        <!-- System Settings Section -->
+        <div class="section">
+            <h2>System Settings</h2>
+            <button class="btn" onclick="showSettingsModal()">Configure Settings</button>
+            <div id="settings-info">
+                <!-- Settings info will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Add User Modal -->
+    <div id="addUserModal" class="modal">
+        <div class="modal-content">
+            <h2>Add New User</h2>
+            <form id="addUserForm">
+                <div class="form-group">
+                    <label>Username:</label>
+                    <input type="text" id="username" required>
+                </div>
+                <div class="form-group">
+                    <label>Email:</label>
+                    <input type="email" id="email" required>
+                </div>
+                <div class="form-group">
+                    <label>Password:</label>
+                    <input type="password" id="password" required>
+                </div>
+                <div class="form-group">
+                    <label>Subscription Tier:</label>
+                    <select id="subscriptionTier">
+                        <option value="free">Free</option>
+                        <option value="premium">Premium</option>
+                        <option value="enterprise">Enterprise</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Daily Email Limit:</label>
+                    <input type="number" id="dailyLimit" value="100" min="0">
+                </div>
+                <button type="submit" class="btn">Add User</button>
+                <button type="button" class="btn delete" onclick="hideModal('addUserModal')">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Show/Hide Modals
+        function showModal(modalId) {
+            document.getElementById(modalId).style.display = 'block';
+        }
+        
+        function hideModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        function showAddUserModal() {
+            showModal('addUserModal');
+        }
+
+        // Load Users
+        async function loadUsers() {
+            try {
+                const response = await fetch('/api/admin/users');
+                if (response.ok) {
+                    const users = await response.json();
+                    displayUsers(users);
+                }
+            } catch (error) {
+                console.error('Error loading users:', error);
+            }
+        }
+
+        // Display Users
+        function displayUsers(users) {
+            const table = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Email</th>
+                            <th>Subscription</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${users.map(user => `
+                            <tr>
+                                <td>${user.username}</td>
+                                <td>${user.email}</td>
+                                <td>${user.subscription_tier}</td>
+                                <td>${user.is_active ? 'Active' : 'Inactive'}</td>
+                                <td>
+                                    <button class="btn" onclick="editUser(${user.id})">Edit</button>
+                                    <button class="btn delete" onclick="deleteUser(${user.id})">Delete</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            document.getElementById('users-table').innerHTML = table;
+        }
+
+        // Add User
+        document.getElementById('addUserForm').onsubmit = async function(e) {
+            e.preventDefault();
+            const userData = {
+                username: document.getElementById('username').value,
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value,
+                subscription_tier: document.getElementById('subscriptionTier').value,
+                daily_email_limit: parseInt(document.getElementById('dailyLimit').value)
+            };
+
+            try {
+                const response = await fetch('/api/admin/users', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(userData)
+                });
+
+                if (response.ok) {
+                    alert('User created successfully!');
+                    hideModal('addUserModal');
+                    loadUsers();
+                } else {
+                    const error = await response.json();
+                    alert(error.detail || 'Failed to create user');
+                }
+            } catch (error) {
+                alert('Error creating user: ' + error.message);
+            }
+        };
+
+        // Load initial data
+        document.addEventListener('DOMContentLoaded', function() {
+            loadUsers();
+        });
+    </script>
+</body>
+</html>
