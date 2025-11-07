@@ -57,13 +57,19 @@ class SupabaseClient:
     def __init__(self):
         self.url = SUPABASE_URL
         self.key = SUPABASE_SERVICE_KEY or SUPABASE_ANON_KEY
-        
         if not self.url or not self.key:
-            logger.warning("Supabase credentials not configured - using mock mode with in-memory storage")
+            logger.warning("Supabase credentials not configured - using persistent mock mode (/tmp store)")
             self.mock_mode = True
-            # In-memory storage
-            self.mock_data = {"users": [], "email_campaigns": [], "recipient_lists": [], "user_settings": []}
+            self.store_path = "/tmp/enhanced_email_sender_store.json"
+            # Default structure
+            self.mock_data = {
+                "users": [],
+                "email_campaigns": [],
+                "recipient_lists": [],
+                "user_settings": []
+            }
             self.next_id = 1
+            self._load_store()
         else:
             self.mock_mode = False
             self.headers = {
@@ -71,6 +77,33 @@ class SupabaseClient:
                 "Authorization": f"Bearer {self.key}",
                 "Content-Type": "application/json"
             }
+
+    def _load_store(self) -> None:
+        try:
+            if os.path.exists(self.store_path):
+                with open(self.store_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    if isinstance(data, dict):
+                        # Merge existing keys safely
+                        for k in self.mock_data.keys():
+                            if isinstance(data.get(k), list):
+                                self.mock_data[k] = data.get(k)
+                        # Determine next id
+                        try:
+                            existing_ids = [int(u.get("id", 0)) for u in self.mock_data.get("users", []) if u.get("id")]
+                            if existing_ids:
+                                self.next_id = max(existing_ids) + 1
+                        except Exception:
+                            self.next_id = 1
+        except Exception as e:
+            logger.error(f"Mock store load failed: {e}")
+
+    def _save_store(self) -> None:
+        try:
+            with open(self.store_path, "w", encoding="utf-8") as f:
+                json.dump(self.mock_data, f, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Mock store save failed: {e}")
     
     async def select(self, table: str, columns: str = "*", filters: Dict = None):
         """Select data from Supabase table"""
@@ -100,11 +133,16 @@ class SupabaseClient:
     async def insert(self, table: str, data: Dict):
         """Insert data into Supabase table"""
         if self.mock_mode:
-            new_item = {"id": self.next_id, **data}
-            self.next_id += 1
             if table not in self.mock_data:
                 self.mock_data[table] = []
+            item_id = int(data.get("id") or self.next_id)
+            self.next_id = max(self.next_id, item_id + 1)
+            # Guarantee expires_at if user
+            if table == "users" and not data.get("expires_at"):
+                data["expires_at"] = (datetime.utcnow() + timedelta(days=30)).isoformat()
+            new_item = {"id": item_id, **data}
             self.mock_data[table].append(new_item)
+            self._save_store()
             return [new_item]
             
         url = f"{self.url}/rest/v1/{table}"
@@ -124,8 +162,14 @@ class SupabaseClient:
         if self.mock_mode:
             items = self.mock_data.get(table, [])
             for item in items:
-                if all(item.get(k) == v for k, v in filters.items()):
+                match = True
+                for k, v in filters.items():
+                    if item.get(k) != v:
+                        match = False
+                        break
+                if match:
                     item.update(data)
+            self._save_store()
             return [data]
             
         url = f"{self.url}/rest/v1/{table}"
@@ -152,7 +196,13 @@ class SupabaseClient:
         """Delete data from Supabase table"""
         if self.mock_mode:
             items = self.mock_data.get(table, [])
-            self.mock_data[table] = [item for item in items if not all(item.get(k) == v for k, v in filters.items())]
+            def _matches(item: Dict[str, Any]) -> bool:
+                for k, v in filters.items():
+                    if item.get(k) != v:
+                        return False
+                return True
+            self.mock_data[table] = [item for item in items if not _matches(item)]
+            self._save_store()
             return True
             
         url = f"{self.url}/rest/v1/{table}"
