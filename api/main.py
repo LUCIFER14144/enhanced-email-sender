@@ -793,59 +793,219 @@ async def admin_logout():
 
 @app.get("/admin/dashboard", response_class=HTMLResponse)
 async def admin_dashboard(request: Request, admin: bool = Depends(verify_admin_session)):
-    """Admin dashboard"""
-    return HTMLResponse("""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Admin Dashboard</title>
-        <style>
-            body { font-family: Arial; margin: 0; background: #f5f5f5; }
-            .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; }
-            .container { max-width: 1200px; margin: 20px auto; padding: 20px; }
-            .card { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-            h1 { margin: 0; }
-            .btn { padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; text-decoration: none; }
-            .btn:hover { background: #5568d3; }
-            .message { background: #d4edda; color: #155724; padding: 15px; border-radius: 5px; margin: 15px 0; }
-        </style>
-    </head>
-    <body>
-        <div class="header">
-            <h1>📧 Enhanced Email Sender - Admin Dashboard</h1>
+    """Admin dashboard with full user management"""
+    try:
+        # Fetch all users
+        users = await supabase.select("users") or []
+        
+        # Calculate days remaining for each user
+        for user in users:
+            if user.get("expires_at"):
+                try:
+                    expiry = datetime.fromisoformat(user["expires_at"].replace('Z', '+00:00'))
+                    days_left = (expiry - datetime.utcnow()).days
+                    user["days_remaining"] = max(0, days_left)
+                except:
+                    user["days_remaining"] = 0
+            else:
+                user["days_remaining"] = 0
+        
+        # Calculate stats
+        total_users = len(users)
+        active_users = sum(1 for u in users if u.get("is_active") and u.get("days_remaining", 0) > 0)
+        expired_users = sum(1 for u in users if u.get("days_remaining", 0) <= 0)
+        
+        campaigns = await supabase.select("email_campaigns") or []
+        total_campaigns = len(campaigns)
+        
+        # Get success/error messages from query params
+        success_msg = request.query_params.get('success', '')
+        error_msg = request.query_params.get('error', '')
+        
+        # Build users HTML rows
+        users_html = ""
+        for user in users:
+            sub_type = user.get("subscription_type", "free")
+            badge_class = "success" if sub_type == "premium" else ("primary" if sub_type == "enterprise" else "warning")
+            days_remaining = user.get("days_remaining", 0)
+            days_badge = "danger" if days_remaining <= 0 else ("warning" if days_remaining <= 7 else "success")
+            is_active = user.get("is_active") and days_remaining > 0
+            status_badge = "success" if is_active else "danger"
+            status_text = "Active" if is_active else "Inactive"
+            expires_at = user.get("expires_at", "N/A")[:10] if user.get("expires_at") else "N/A"
+            
+            users_html += f"""
+            <tr>
+                <td>{user.get("id")}</td>
+                <td><strong>{user.get("username")}</strong></td>
+                <td>{user.get("email") or "N/A"}</td>
+                <td><span class="badge badge-{badge_class}">{sub_type.title()}</span></td>
+                <td>{expires_at}</td>
+                <td><span class="badge badge-{days_badge}">{days_remaining} days</span></td>
+                <td><span class="badge badge-{status_badge}">{status_text}</span></td>
+                <td>
+                    <div class="actions">
+                        <button onclick="extendSubscription({user.get('id')})" class="btn btn-warning btn-sm">➕ Extend</button>
+                        <button onclick="setExpiration({user.get('id')})" class="btn btn-primary btn-sm">📅 Set Date</button>
+                        <button onclick="deleteUser({user.get('id')}, '{user.get('username')}')" class="btn btn-danger btn-sm">🗑️ Delete</button>
+                    </div>
+                </td>
+            </tr>
+            """
+        
+        alert_html = ""
+        if success_msg:
+            alert_html = f'<div class="alert alert-success">✅ {success_msg}</div>'
+        if error_msg:
+            alert_html = f'<div class="alert alert-danger">❌ {error_msg}</div>'
+        
+        return HTMLResponse(f"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Enhanced Email Sender</title>
+    <style>
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8f9fa; line-height: 1.6; }}
+        .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem 0; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+        .header-content {{ max-width: 1200px; margin: 0 auto; padding: 0 2rem; display: flex; justify-content: space-between; align-items: center; }}
+        .header h1 {{ font-size: 1.8rem; font-weight: 600; }}
+        .container {{ max-width: 1200px; margin: 0 auto; padding: 2rem; }}
+        .card {{ background: white; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; box-shadow: 0 2px 15px rgba(0,0,0,0.08); border: 1px solid #e9ecef; }}
+        .card h2 {{ color: #495057; margin-bottom: 1rem; font-size: 1.3rem; }}
+        .stats-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }}
+        .stat-card {{ background: white; padding: 1.5rem; border-radius: 12px; text-align: center; box-shadow: 0 2px 15px rgba(0,0,0,0.08); border-left: 4px solid; }}
+        .stat-card.users {{ border-left-color: #28a745; }}
+        .stat-card.active {{ border-left-color: #007bff; }}
+        .stat-card.expired {{ border-left-color: #dc3545; }}
+        .stat-card.campaigns {{ border-left-color: #ffc107; }}
+        .stat-number {{ font-size: 2rem; font-weight: bold; color: #495057; }}
+        .stat-label {{ color: #6c757d; font-size: 0.9rem; margin-top: 0.5rem; }}
+        .add-user-form {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; align-items: end; margin-bottom: 1.5rem; }}
+        .form-group {{ display: flex; flex-direction: column; }}
+        .form-group label {{ margin-bottom: 0.25rem; font-weight: 500; color: #495057; font-size: 0.9rem; }}
+        .form-group input, .form-group select {{ padding: 0.5rem; border: 1px solid #ced4da; border-radius: 6px; font-size: 0.9rem; }}
+        .table {{ width: 100%; border-collapse: collapse; margin-top: 1rem; }}
+        .table th, .table td {{ padding: 0.75rem; text-align: left; border-bottom: 1px solid #dee2e6; }}
+        .table th {{ background: #f8f9fa; font-weight: 600; color: #495057; font-size: 0.9rem; }}
+        .table tbody tr:hover {{ background: #f8f9fa; }}
+        .badge {{ padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }}
+        .badge-success {{ background: #d4edda; color: #155724; }}
+        .badge-danger {{ background: #f8d7da; color: #721c24; }}
+        .badge-warning {{ background: #fff3cd; color: #856404; }}
+        .badge-primary {{ background: #cce5ff; color: #004085; }}
+        .btn {{ padding: 0.5rem 1rem; border: none; border-radius: 6px; font-size: 0.9rem; cursor: pointer; text-decoration: none; display: inline-block; transition: all 0.3s ease; }}
+        .btn-sm {{ padding: 0.25rem 0.5rem; font-size: 0.8rem; }}
+        .btn-success {{ background: #28a745; color: white; }}
+        .btn-success:hover {{ background: #218838; }}
+        .btn-primary {{ background: #007bff; color: white; }}
+        .btn-primary:hover {{ background: #0056b3; }}
+        .btn-warning {{ background: #ffc107; color: #212529; }}
+        .btn-warning:hover {{ background: #e0a800; }}
+        .btn-danger {{ background: #dc3545; color: white; }}
+        .btn-danger:hover {{ background: #c82333; }}
+        .btn-outline {{ background: transparent; color: white; border: 1px solid white; }}
+        .btn-outline:hover {{ background: white; color: #667eea; }}
+        .alert {{ padding: 0.75rem 1rem; margin-bottom: 1rem; border: 1px solid transparent; border-radius: 6px; }}
+        .alert-success {{ color: #155724; background-color: #d4edda; border-color: #c3e6cb; }}
+        .alert-danger {{ color: #721c24; background-color: #f8d7da; border-color: #f5c6cb; }}
+        .actions {{ display: flex; gap: 0.5rem; flex-wrap: wrap; }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <div>
+                <h1>📧 Enhanced Email Sender</h1>
+                <p>Administration Dashboard</p>
+            </div>
+            <div><a href="/admin/logout" class="btn btn-outline">🚪 Logout</a></div>
         </div>
-        <div class="container">
-            <div class="card">
-                <h2>Admin Panel</h2>
-                <p>Welcome to the Enhanced Email Sender admin dashboard!</p>
-                <p><strong>Note:</strong> Connect your Supabase database to manage users, campaigns, and settings.</p>
-                <p><a href="/admin/logout" class="btn">Logout</a></p>
-            </div>
-            <div class="card">
-                <h3>Quick Setup Guide</h3>
-                <ol>
-                    <li>Set up your Supabase project at <a href="https://supabase.com" target="_blank">supabase.com</a></li>
-                    <li>Add environment variables in Vercel:
-                        <ul>
-                            <li>SUPABASE_URL</li>
-                            <li>SUPABASE_SERVICE_KEY</li>
-                            <li>JWT_SECRET</li>
-                        </ul>
-                    </li>
-                    <li>Run the database schema from /database/schema.sql</li>
-                    <li>Redeploy your application</li>
-                </ol>
-            </div>
-            <div class="card">
-                <h3>API Status</h3>
-                <p>✅ API is running</p>
-                <p>📍 Base URL: <code>https://perfected-vercelblasting.vercel.app</code></p>
-                <p>📦 Download Page: <a href="/download">/download</a></p>
+    </div>
+    <div class="container">
+        {alert_html}
+        <div class="stats-grid">
+            <div class="stat-card users"><div class="stat-number">{total_users}</div><div class="stat-label">Total Users</div></div>
+            <div class="stat-card active"><div class="stat-number">{active_users}</div><div class="stat-label">Active Users</div></div>
+            <div class="stat-card expired"><div class="stat-number">{expired_users}</div><div class="stat-label">Expired Users</div></div>
+            <div class="stat-card campaigns"><div class="stat-number">{total_campaigns}</div><div class="stat-label">Total Campaigns</div></div>
+        </div>
+        <div class="card">
+            <h2>➕ Add New User</h2>
+            <form method="post" action="/admin/users/add" class="add-user-form">
+                <div class="form-group"><label for="username">Username</label><input type="text" id="username" name="username" required></div>
+                <div class="form-group"><label for="password">Password</label><input type="password" id="password" name="password" required></div>
+                <div class="form-group"><label for="email">Email</label><input type="email" id="email" name="email"></div>
+                <div class="form-group"><label for="subscription_type">Subscription</label>
+                    <select id="subscription_type" name="subscription_type">
+                        <option value="free">Free</option>
+                        <option value="premium">Premium</option>
+                        <option value="enterprise">Enterprise</option>
+                    </select>
+                </div>
+                <div class="form-group"><label for="expiration_days">Days</label><input type="number" id="expiration_days" name="expiration_days" value="30" min="1" max="3650"></div>
+                <div class="form-group"><button type="submit" class="btn btn-success">Add User</button></div>
+            </form>
+        </div>
+        <div class="card">
+            <h2>👥 Registered Users ({total_users})</h2>
+            <div class="table-responsive">
+                <table class="table">
+                    <thead><tr><th>ID</th><th>Username</th><th>Email</th><th>Subscription</th><th>Expires</th><th>Days Left</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody>{users_html}</tbody>
+                </table>
             </div>
         </div>
-    </body>
-    </html>
-    """)
+    </div>
+    <script>
+        function extendSubscription(userId) {{
+            const days = prompt("How many days to extend the subscription?", "30");
+            if (days && parseInt(days) > 0) {{
+                fetch(`/admin/users/${{userId}}/extend`, {{
+                    method: 'POST', headers: {{'Content-Type': 'application/json'}},
+                    body: JSON.stringify({{days: parseInt(days)}})
+                }})
+                .then(response => response.json())
+                .then(data => {{ if (data.success) {{ alert(data.message); location.reload(); }} else {{ alert('Error: ' + (data.detail || 'Failed')); }} }})
+                .catch(error => alert('Error: ' + error.message));
+            }}
+        }}
+        function setExpiration(userId) {{
+            const date = prompt("Set expiration date (YYYY-MM-DD):", "2025-12-31");
+            const subscriptionType = prompt("Subscription type:", "premium");
+            if (date && subscriptionType) {{
+                fetch(`/admin/users/${{userId}}/set-expiration`, {{
+                    method: 'POST', headers: {{'Content-Type': 'application/json'}},
+                    body: JSON.stringify({{expiration_date: date, subscription_type: subscriptionType}})
+                }})
+                .then(response => response.json())
+                .then(data => {{ if (data.success) {{ alert(data.message); location.reload(); }} else {{ alert('Error: ' + (data.detail || 'Failed')); }} }})
+                .catch(error => alert('Error: ' + error.message));
+            }}
+        }}
+        function deleteUser(userId, username) {{
+            if (confirm(`Delete user "${{username}}"?\\n\\nThis will delete all their data and cannot be undone!`)) {{
+                fetch(`/admin/users/${{userId}}`, {{method: 'DELETE'}})
+                .then(response => response.json())
+                .then(data => {{ if (data.success) {{ alert(data.message); location.reload(); }} else {{ alert('Error: ' + (data.detail || 'Failed')); }} }})
+                .catch(error => alert('Error: ' + error.message));
+            }}
+        }}
+    </script>
+</body>
+</html>
+        """)
+    except Exception as e:
+        logger.error(f"Admin dashboard error: {e}")
+        return HTMLResponse(f"""
+        <html><body style="font-family: Arial; padding: 50px; text-align: center;">
+        <h1>⚠️ Dashboard Error</h1>
+        <p>Error loading dashboard: {str(e)}</p>
+        <p><a href="/admin/logout">Logout</a></p>
+        </body></html>
+        """)
 
 @app.post("/admin/users/add")
 async def admin_add_user(
