@@ -1,32 +1,14 @@
 # Enhanced Email Sender - Cloud Backend Requirements
-# Core FastAPI and server
-fastapi==0.104.1
-uvicorn==0.24.0
-pydantic==2.5.0
-
-# Authentication and security
-python-jose[cryptography]==3.3.0
-python-multipart==0.0.6
-bcrypt==4.1.2
-passlib[bcrypt]==1.7.4
-
-# HTTP client and async support
-httpx==0.25.2
-aiofiles==23.2.1
-
-# Template engine
-jinja2==3.1.2
-
-# Database support (PostgreSQL/Supabase)
-asyncpg==0.29.0
-supabase==2.0.2
-
-# Email processing (for desktop app integration)
-email-validator==2.1.0
-
-# Development and production
-python-dotenv==1.0.0
-gunicorn==21.2.0
+fastapi>=0.100.0
+uvicorn[standard]>=0.20.0
+python-jose[cryptography]>=3.3.0
+python-multipart>=0.0.5
+bcrypt>=4.0.0
+passlib[bcrypt]>=1.7.0
+httpx>=0.24.0
+jinja2>=3.1.0
+email-validator>=2.0.0
+python-dotenv>=1.0.0
 
 # For desktop app (add these to desktop requirements)
 # tkinter (built-in with Python)
