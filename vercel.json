@@ -1,7 +1,8 @@
 {
   "version": 2,
   "builds": [
-    { "src": "api/*.py", "use": "@vercel/python" }
+    { "src": "api/*.py", "use": "@vercel/python" },
+    { "src": "admin/static/**", "use": "@vercel/static" }
   ],
   "routes": [
     {
@@ -28,12 +29,16 @@
       }
     },
     {
-      "src": "/admin/(.*)",
+      "src": "/admin/(login|dashboard|logout)",
       "dest": "/api/admin.py"
     },
     {
       "src": "/admin",
       "dest": "/api/admin.py"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/main_production.py"
     },
     {
       "src": "/(.*)",
