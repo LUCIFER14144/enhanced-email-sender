@@ -199,6 +199,106 @@ class CloudSync:
         except requests.exceptions.RequestException as e:
             logger.error(f"Load settings error: {e}")
             return {}
+    
+    def update_email_stats(self, sent_count: int) -> bool:
+        """Update email sending statistics in cloud"""
+        if not self.token:
+            return False
+            
+        try:
+            headers = {"Authorization": f"Bearer {self.token}"}
+            response = requests.post(
+                f"{self.api_base_url}/api/stats/update",
+                json={"emails_sent": sent_count},
+                headers=headers,
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                logger.info(f"Updated email stats: {sent_count} emails sent")
+                return True
+            
+            return False
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Update stats error: {e}")
+            return False
+    
+    def get_user_info(self) -> Optional[Dict]:
+        """Get current user information including subscription status"""
+        if not self.token or not self.user_data:
+            return None
+            
+        try:
+            headers = {"Authorization": f"Bearer {self.token}"}
+            response = requests.get(
+                f"{self.api_base_url}/api/user/info",
+                headers=headers,
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("success"):
+                    return data.get("user")
+            
+            # Fallback to stored user data
+            return self.user_data
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Get user info error: {e}")
+            return self.user_data
+    
+    def validate_subscription(self, email_count: int) -> Optional[Dict]:
+        """Validate if user can send specified number of emails"""
+        if not self.token or not self.user_data:
+            return None
+            
+        try:
+            headers = {"Authorization": f"Bearer {self.token}"}
+            response = requests.post(
+                f"{self.api_base_url}/api/validate/subscription",
+                json={
+                    "email_count": email_count,
+                    "username": self.user_data.get("username")
+                },
+                headers=headers,
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                return response.json()
+            
+            return None
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Validate subscription error: {e}")
+            return None
+    
+    def get_campaign_history(self) -> Optional[List[Dict]]:
+        """Get email campaign history for user"""
+        if not self.token or not self.user_data:
+            return None
+            
+        try:
+            headers = {"Authorization": f"Bearer {self.token}"}
+            response = requests.get(
+                f"{self.api_base_url}/api/campaigns/history",
+                params={"username": self.user_data.get("username")},
+                headers=headers,
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("success"):
+                    return data.get("campaigns", [])
+            
+            return []
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Get campaign history error: {e}")
+            return []
 
 def create_cloud_login_window() -> Optional[CloudSync]:
     """Create and show cloud login window"""

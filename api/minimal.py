@@ -341,6 +341,14 @@ async def debug_info():
         ]
     }
 
+# Subscription tier limits
+SUBSCRIPTION_LIMITS = {
+    "free": {"daily_limit": 10, "monthly_limit": 100, "total_limit": 1000},
+    "premium": {"daily_limit": 100, "monthly_limit": 1000, "total_limit": 10000},
+    "enterprise": {"daily_limit": 1000, "monthly_limit": 10000, "total_limit": 100000},
+    "admin": {"daily_limit": -1, "monthly_limit": -1, "total_limit": -1}  # Unlimited
+}
+
 # Mock users database (in production, this would be in Supabase)
 MOCK_USERS_DB = [
     {
@@ -351,7 +359,10 @@ MOCK_USERS_DB = [
         "expires_at": "2030-12-31T23:59:59",
         "is_active": True,
         "created_at": "2024-01-01T00:00:00",
-        "total_emails_sent": 0
+        "total_emails_sent": 0,
+        "daily_emails_sent": 0,
+        "monthly_emails_sent": 0,
+        "last_email_date": None
     },
     {
         "id": 2,
@@ -361,7 +372,10 @@ MOCK_USERS_DB = [
         "expires_at": "2025-12-31T23:59:59",
         "is_active": True,
         "created_at": "2024-01-01T00:00:00",
-        "total_emails_sent": 45
+        "total_emails_sent": 45,
+        "daily_emails_sent": 3,
+        "monthly_emails_sent": 45,
+        "last_email_date": "2024-11-06"
     },
     {
         "id": 3,
@@ -371,7 +385,10 @@ MOCK_USERS_DB = [
         "expires_at": "2025-06-15T23:59:59",
         "is_active": True,
         "created_at": "2024-02-15T00:00:00",
-        "total_emails_sent": 123
+        "total_emails_sent": 123,
+        "daily_emails_sent": 5,
+        "monthly_emails_sent": 123,
+        "last_email_date": "2024-11-06"
     }
 ]
 
@@ -726,6 +743,275 @@ async def admin_dashboard_page(request: Request):
     </body>
     </html>
     """)
+
+# Email statistics tracking
+@app.post("/api/stats/update")
+async def update_email_stats(request: Request):
+    """Update user email sending statistics"""
+    try:
+        data = await request.json()
+        emails_sent = data.get("emails_sent", 0)
+        username = data.get("username", "demo")  # In production, get from JWT
+        campaign_name = data.get("campaign_name", f"Campaign {datetime.now().strftime('%Y%m%d_%H%M%S')}")
+        
+        # Find and update user
+        user = next((u for u in MOCK_USERS_DB if u["username"] == username), None)
+        if user:
+            user["total_emails_sent"] += emails_sent
+            user["daily_emails_sent"] += emails_sent
+            user["monthly_emails_sent"] += emails_sent
+            user["last_email_date"] = datetime.now().strftime("%Y-%m-%d")
+            
+            # Log campaign (in production, this would be in database)
+            campaign_log = {
+                "campaign_name": campaign_name,
+                "emails_sent": emails_sent,
+                "timestamp": datetime.now().isoformat(),
+                "username": username
+            }
+            
+            return {
+                "success": True,
+                "message": f"Updated stats: {emails_sent} emails sent",
+                "total_emails": user["total_emails_sent"],
+                "campaign": campaign_log
+            }
+        else:
+            return JSONResponse(
+                status_code=404,
+                content={"success": False, "error": "User not found"}
+            )
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": str(e)}
+        )
+
+@app.get("/api/user/info")
+async def get_user_info(request: Request):
+    """Get user information and subscription status"""
+    try:
+        # In production, this would verify JWT token and get from database
+        # For demo, return demo user data with subscription limits
+        user = MOCK_USERS_DB[1]  # Demo user
+        limits = SUBSCRIPTION_LIMITS[user["subscription_type"]]
+        
+        # Calculate remaining emails
+        daily_remaining = limits["daily_limit"] - user["daily_emails_sent"] if limits["daily_limit"] != -1 else -1
+        monthly_remaining = limits["monthly_limit"] - user["monthly_emails_sent"] if limits["monthly_limit"] != -1 else -1
+        total_remaining = limits["total_limit"] - user["total_emails_sent"] if limits["total_limit"] != -1 else -1
+        
+        return {
+            "success": True,
+            "user": {
+                "username": user["username"],
+                "email": user["email"],
+                "subscription_type": user["subscription_type"],
+                "expires_at": user["expires_at"],
+                "is_active": user["is_active"],
+                "total_emails_sent": user["total_emails_sent"],
+                "daily_emails_sent": user["daily_emails_sent"],
+                "monthly_emails_sent": user["monthly_emails_sent"],
+                "limits": limits,
+                "remaining": {
+                    "daily": daily_remaining,
+                    "monthly": monthly_remaining,
+                    "total": total_remaining
+                }
+            }
+        }
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": str(e)}
+        )
+
+@app.post("/api/validate/subscription")
+async def validate_subscription(request: Request):
+    """Validate if user can send emails based on subscription"""
+    try:
+        data = await request.json()
+        email_count = data.get("email_count", 1)
+        username = data.get("username", "demo")  # In production, get from JWT
+        
+        # Find user
+        user = next((u for u in MOCK_USERS_DB if u["username"] == username), None)
+        if not user:
+            return JSONResponse(
+                status_code=404,
+                content={"success": False, "error": "User not found"}
+            )
+        
+        # Check if subscription is active
+        if not user["is_active"]:
+            return {
+                "success": False,
+                "error": "Account is inactive",
+                "can_send": False
+            }
+        
+        # Check expiration
+        expire_date = datetime.fromisoformat(user["expires_at"])
+        if expire_date < datetime.now():
+            return {
+                "success": False,
+                "error": "Subscription expired",
+                "can_send": False,
+                "expires_at": user["expires_at"]
+            }
+        
+        # Check limits
+        limits = SUBSCRIPTION_LIMITS[user["subscription_type"]]
+        
+        # Check daily limit
+        if limits["daily_limit"] != -1:
+            if user["daily_emails_sent"] + email_count > limits["daily_limit"]:
+                return {
+                    "success": False,
+                    "error": f"Daily limit exceeded. Limit: {limits['daily_limit']}, Used: {user['daily_emails_sent']}",
+                    "can_send": False,
+                    "limits": limits
+                }
+        
+        # Check monthly limit
+        if limits["monthly_limit"] != -1:
+            if user["monthly_emails_sent"] + email_count > limits["monthly_limit"]:
+                return {
+                    "success": False,
+                    "error": f"Monthly limit exceeded. Limit: {limits['monthly_limit']}, Used: {user['monthly_emails_sent']}",
+                    "can_send": False,
+                    "limits": limits
+                }
+        
+        # Check total limit
+        if limits["total_limit"] != -1:
+            if user["total_emails_sent"] + email_count > limits["total_limit"]:
+                return {
+                    "success": False,
+                    "error": f"Total limit exceeded. Limit: {limits['total_limit']}, Used: {user['total_emails_sent']}",
+                    "can_send": False,
+                    "limits": limits
+                }
+        
+        # Calculate days until expiration
+        days_until_expiry = (expire_date - datetime.now()).days
+        
+        return {
+            "success": True,
+            "can_send": True,
+            "message": "Validation successful",
+            "limits": limits,
+            "usage": {
+                "daily": user["daily_emails_sent"],
+                "monthly": user["monthly_emails_sent"],
+                "total": user["total_emails_sent"]
+            },
+            "days_until_expiry": days_until_expiry,
+            "warnings": [] if days_until_expiry > 7 else [f"Subscription expires in {days_until_expiry} days"]
+        }
+        
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": str(e)}
+        )
+
+# Campaign history tracking
+@app.get("/api/campaigns/history")
+async def get_campaign_history(request: Request):
+    """Get email campaign history for user"""
+    try:
+        username = request.query_params.get("username", "demo") # In production, get from JWT
+        
+        # Mock campaign history (in production, query from database)
+        campaigns = [
+            {
+                "id": 1,
+                "campaign_name": "Welcome Series",
+                "emails_sent": 25,
+                "timestamp": "2024-11-01T10:00:00",
+                "status": "completed",
+                "success_rate": 96.0
+            },
+            {
+                "id": 2,
+                "campaign_name": "Product Update",
+                "emails_sent": 15,
+                "timestamp": "2024-11-03T14:30:00",
+                "status": "completed",
+                "success_rate": 100.0
+            },
+            {
+                "id": 3,
+                "campaign_name": "Newsletter Nov",
+                "emails_sent": 5,
+                "timestamp": "2024-11-06T09:15:00",
+                "status": "completed",
+                "success_rate": 100.0
+            }
+        ]
+        
+        return {
+            "success": True,
+            "campaigns": campaigns,
+            "total_campaigns": len(campaigns),
+            "total_emails_sent": sum(c["emails_sent"] for c in campaigns)
+        }
+        
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": str(e)}
+        )
+
+@app.get("/admin/analytics")
+async def admin_analytics(request: Request):
+    """Get analytics data for admin dashboard"""
+    try:
+        # Calculate analytics from user data
+        total_users = len(MOCK_USERS_DB)
+        active_users = len([u for u in MOCK_USERS_DB if u["is_active"]])
+        total_emails = sum(u["total_emails_sent"] for u in MOCK_USERS_DB)
+        
+        # Subscription breakdown
+        subscription_breakdown = {}
+        for user in MOCK_USERS_DB:
+            sub_type = user["subscription_type"]
+            if sub_type not in subscription_breakdown:
+                subscription_breakdown[sub_type] = {"count": 0, "emails_sent": 0}
+            subscription_breakdown[sub_type]["count"] += 1
+            subscription_breakdown[sub_type]["emails_sent"] += user["total_emails_sent"]
+        
+        # Recent activity (mock data)
+        recent_activity = [
+            {"username": "demo", "action": "sent_emails", "count": 5, "timestamp": "2024-11-06T09:15:00"},
+            {"username": "testuser", "action": "sent_emails", "count": 3, "timestamp": "2024-11-06T08:30:00"},
+            {"username": "demo", "action": "login", "timestamp": "2024-11-06T08:00:00"}
+        ]
+        
+        return {
+            "success": True,
+            "analytics": {
+                "users": {
+                    "total": total_users,
+                    "active": active_users,
+                    "inactive": total_users - active_users
+                },
+                "emails": {
+                    "total_sent": total_emails,
+                    "today": sum(u["daily_emails_sent"] for u in MOCK_USERS_DB),
+                    "this_month": sum(u["monthly_emails_sent"] for u in MOCK_USERS_DB)
+                },
+                "subscriptions": subscription_breakdown,
+                "recent_activity": recent_activity
+            }
+        }
+        
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": str(e)}
+        )
 
 # Test endpoint
 @app.get("/test")

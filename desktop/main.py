@@ -7,12 +7,17 @@ for user authentication, data synchronization, and subscription management.
 """
 
 import tkinter as tk
-from tkinter import ttk, messagebox, simpledialog
+from tkinter import ttk, messagebox, simpledialog, filedialog, scrolledtext
 import sys
 import os
 from datetime import datetime
 import logging
 import threading
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
 
 # Add current directory to path for imports
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -286,6 +291,7 @@ Or register a new account above."""
         # Create tabs
         self.create_email_tab()
         self.create_recipients_tab()
+        self.create_campaigns_tab()
         self.create_cloud_tab()
         self.create_subscription_tab()
         self.create_settings_tab()
@@ -353,6 +359,67 @@ Or register a new account above."""
         ttk.Button(button_frame, text="💾 Save Local", command=self.save_recipients_local).pack(side=tk.LEFT, padx=(0, 10))
         ttk.Button(button_frame, text="☁️ Save to Cloud", command=self.save_recipients_cloud).pack(side=tk.LEFT, padx=(0, 10))
         ttk.Button(button_frame, text="🔄 Load from Cloud", command=self.load_recipients_cloud).pack(side=tk.LEFT)
+    
+    def create_campaigns_tab(self):
+        """Create campaigns history and analytics tab"""
+        campaigns_frame = ttk.Frame(self.notebook, padding="10")
+        self.notebook.add(campaigns_frame, text="📊 Campaigns")
+        
+        # Header
+        header_frame = ttk.Frame(campaigns_frame)
+        header_frame.pack(fill=tk.X, pady=(0, 15))
+        
+        ttk.Label(header_frame, text="📊 Campaign History & Analytics", 
+                 font=('Segoe UI', 14, 'bold')).pack(side=tk.LEFT)
+        
+        ttk.Button(header_frame, text="🔄 Refresh", 
+                  command=self.refresh_campaigns).pack(side=tk.RIGHT)
+        
+        # Statistics frame
+        stats_frame = ttk.LabelFrame(campaigns_frame, text="Statistics", padding="15")
+        stats_frame.pack(fill=tk.X, pady=(0, 15))
+        
+        self.stats_labels = {}
+        stats_grid = ttk.Frame(stats_frame)
+        stats_grid.pack(fill=tk.X)
+        
+        # Total emails
+        ttk.Label(stats_grid, text="Total Emails Sent:", font=('Arial', 10, 'bold')).grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
+        self.stats_labels['total'] = ttk.Label(stats_grid, text="0", font=('Arial', 10))
+        self.stats_labels['total'].grid(row=0, column=1, sticky=tk.W)
+        
+        # Today's emails
+        ttk.Label(stats_grid, text="Today:", font=('Arial', 10, 'bold')).grid(row=0, column=2, sticky=tk.W, padx=(20, 10))
+        self.stats_labels['today'] = ttk.Label(stats_grid, text="0", font=('Arial', 10))
+        self.stats_labels['today'].grid(row=0, column=3, sticky=tk.W)
+        
+        # This month
+        ttk.Label(stats_grid, text="This Month:", font=('Arial', 10, 'bold')).grid(row=0, column=4, sticky=tk.W, padx=(20, 10))
+        self.stats_labels['month'] = ttk.Label(stats_grid, text="0", font=('Arial', 10))
+        self.stats_labels['month'].grid(row=0, column=5, sticky=tk.W)
+        
+        # Campaigns history
+        history_frame = ttk.LabelFrame(campaigns_frame, text="Recent Campaigns", padding="10")
+        history_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Treeview for campaigns
+        columns = ('Name', 'Emails Sent', 'Date', 'Success Rate', 'Status')
+        self.campaigns_tree = ttk.Treeview(history_frame, columns=columns, show='headings', height=8)
+        
+        # Define headings
+        for col in columns:
+            self.campaigns_tree.heading(col, text=col)
+            self.campaigns_tree.column(col, width=120)
+        
+        # Scrollbar
+        campaigns_scrollbar = ttk.Scrollbar(history_frame, orient=tk.VERTICAL, command=self.campaigns_tree.yview)
+        self.campaigns_tree.configure(yscrollcommand=campaigns_scrollbar.set)
+        
+        self.campaigns_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        campaigns_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Load initial data
+        self.refresh_campaigns()
     
     def create_cloud_tab(self):
         """Create cloud management tab"""
@@ -556,7 +623,7 @@ Or register a new account above."""
     
     # Email methods
     def send_email(self):
-        """Send email (placeholder)"""
+        """Send email with real SMTP functionality"""
         subject = self.subject_entry.get()
         message = self.message_text.get(1.0, tk.END).strip()
         recipients = self.get_recipients_list()
@@ -565,10 +632,257 @@ Or register a new account above."""
             messagebox.showwarning("Warning", "Please fill in all fields")
             return
         
-        # Here you would integrate your existing email sending logic
-        messagebox.showinfo("Info", f"Email sending feature will be integrated here.\n"
-                                   f"Subject: {subject}\n"
-                                   f"Recipients: {len(recipients)}")
+        # Check subscription status first
+        if not self.check_subscription_status():
+            return
+        
+        # Get SMTP settings
+        smtp_settings = self.get_smtp_settings()
+        if not smtp_settings:
+            return
+        
+        # Send emails in background thread
+        self.status_bar.config(text="Sending emails...")
+        self.root.update()
+        
+        threading.Thread(target=self._send_emails_thread, 
+                        args=(subject, message, recipients, smtp_settings), 
+                        daemon=True).start()
+    
+    def check_subscription_status(self):
+        """Check if user's subscription allows email sending"""
+        if not self.cloud_sync or not self.user_data:
+            messagebox.showwarning("Warning", "Please login to cloud first")
+            return False
+        
+        # Get recipient count for validation
+        recipients = self.get_recipients_list()
+        email_count = len(recipients)
+        
+        if email_count == 0:
+            return False
+        
+        # Validate subscription with cloud
+        try:
+            validation = self.cloud_sync.validate_subscription(email_count)
+            
+            if validation is None:
+                messagebox.showwarning("Warning", "Could not verify subscription status. Please check your internet connection.")
+                return True  # Allow sending if verification fails
+            
+            if not validation.get("can_send", False):
+                error_msg = validation.get("error", "Subscription validation failed")
+                messagebox.showerror("Cannot Send Emails", error_msg)
+                return False
+            
+            # Show warnings if any
+            warnings = validation.get("warnings", [])
+            if warnings:
+                warning_text = "\n".join(warnings)
+                messagebox.showwarning("Subscription Warning", warning_text)
+            
+            # Show usage information in status
+            usage = validation.get("usage", {})
+            limits = validation.get("limits", {})
+            
+            usage_info = []
+            if limits.get("daily_limit", -1) != -1:
+                usage_info.append(f"Daily: {usage.get('daily', 0)}/{limits['daily_limit']}")
+            if limits.get("monthly_limit", -1) != -1:
+                usage_info.append(f"Monthly: {usage.get('monthly', 0)}/{limits['monthly_limit']}")
+            
+            if usage_info:
+                self.status_bar.config(text=f"Usage: {', '.join(usage_info)}")
+            
+            return True
+            
+        except Exception as e:
+            messagebox.showwarning("Warning", f"Could not verify subscription status: {e}")
+            return True  # Allow sending if verification fails
+    
+    def get_smtp_settings(self):
+        """Get SMTP settings from user"""
+        settings_window = tk.Toplevel(self.root)
+        settings_window.title("📧 SMTP Settings")
+        settings_window.geometry("400x350")
+        settings_window.resizable(False, False)
+        
+        # Center window
+        settings_window.update_idletasks()
+        x = (settings_window.winfo_screenwidth() // 2) - (settings_window.winfo_width() // 2)
+        y = (settings_window.winfo_screenheight() // 2) - (settings_window.winfo_height() // 2)
+        settings_window.geometry(f"+{x}+{y}")
+        
+        settings_window.transient(self.root)
+        settings_window.grab_set()
+        
+        main_frame = ttk.Frame(settings_window, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        ttk.Label(main_frame, text="SMTP Server Settings", font=("Arial", 14, "bold")).pack(pady=(0, 15))
+        
+        # SMTP Server
+        ttk.Label(main_frame, text="SMTP Server:").pack(anchor=tk.W)
+        smtp_server_var = tk.StringVar(value="smtp.gmail.com")
+        smtp_server_entry = ttk.Entry(main_frame, textvariable=smtp_server_var, width=40)
+        smtp_server_entry.pack(pady=(0, 10), fill=tk.X)
+        
+        # Port
+        ttk.Label(main_frame, text="Port:").pack(anchor=tk.W)
+        port_var = tk.StringVar(value="587")
+        port_entry = ttk.Entry(main_frame, textvariable=port_var, width=40)
+        port_entry.pack(pady=(0, 10), fill=tk.X)
+        
+        # Email
+        ttk.Label(main_frame, text="Your Email:").pack(anchor=tk.W)
+        email_var = tk.StringVar()
+        email_entry = ttk.Entry(main_frame, textvariable=email_var, width=40)
+        email_entry.pack(pady=(0, 10), fill=tk.X)
+        
+        # Password
+        ttk.Label(main_frame, text="App Password:").pack(anchor=tk.W)
+        password_var = tk.StringVar()
+        password_entry = ttk.Entry(main_frame, textvariable=password_var, show="*", width=40)
+        password_entry.pack(pady=(0, 15), fill=tk.X)
+        
+        # Info label
+        info_label = ttk.Label(main_frame, 
+                              text="For Gmail: Use App Password instead of regular password.\n"
+                                   "Enable 2-step verification and generate App Password.",
+                              font=("Arial", 9), foreground="gray")
+        info_label.pack(pady=(0, 15))
+        
+        # Buttons
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X)
+        
+        result = {"settings": None}
+        
+        def save_settings():
+            if not all([smtp_server_var.get(), port_var.get(), email_var.get(), password_var.get()]):
+                messagebox.showwarning("Warning", "Please fill in all fields")
+                return
+            
+            result["settings"] = {
+                "smtp_server": smtp_server_var.get(),
+                "port": int(port_var.get()),
+                "email": email_var.get(),
+                "password": password_var.get()
+            }
+            settings_window.destroy()
+        
+        def cancel():
+            settings_window.destroy()
+        
+        ttk.Button(button_frame, text="Cancel", command=cancel).pack(side=tk.RIGHT, padx=(10, 0))
+        ttk.Button(button_frame, text="Send Emails", command=save_settings).pack(side=tk.RIGHT)
+        
+        settings_window.wait_window()
+        return result["settings"]
+    
+    def _send_emails_thread(self, subject, message, recipients, smtp_settings):
+        """Send emails in background thread"""
+        try:
+            # Connect to SMTP server
+            server = smtplib.SMTP(smtp_settings["smtp_server"], smtp_settings["port"])
+            server.starttls()
+            server.login(smtp_settings["email"], smtp_settings["password"])
+            
+            sent_count = 0
+            failed_count = 0
+            
+            for recipient in recipients:
+                try:
+                    # Create message
+                    msg = MIMEMultipart()
+                    msg['From'] = smtp_settings["email"]
+                    msg['To'] = recipient
+                    msg['Subject'] = subject
+                    
+                    # Add body
+                    msg.attach(MIMEText(message, 'plain'))
+                    
+                    # Send email
+                    server.send_message(msg)
+                    sent_count += 1
+                    
+                    # Update status
+                    self.root.after(0, lambda: self.status_bar.config(
+                        text=f"Sent {sent_count}/{len(recipients)} emails..."))
+                    
+                except Exception as e:
+                    failed_count += 1
+                    print(f"Failed to send to {recipient}: {e}")
+            
+            server.quit()
+            
+            # Update cloud statistics
+            if self.cloud_sync and sent_count > 0:
+                try:
+                    self.cloud_sync.update_email_stats(sent_count)
+                except Exception as e:
+                    print(f"Failed to update cloud stats: {e}")
+            
+            # Show results
+            self.root.after(0, lambda: self._show_send_results(sent_count, failed_count))
+            
+        except Exception as e:
+            self.root.after(0, lambda: messagebox.showerror("SMTP Error", 
+                                                           f"Failed to connect to SMTP server:\n{e}"))
+        finally:
+            self.root.after(0, lambda: self.status_bar.config(text="Ready"))
+    
+    def _show_send_results(self, sent_count, failed_count):
+        """Show email sending results"""
+        total = sent_count + failed_count
+        if sent_count == total:
+            messagebox.showinfo("Success", f"All {sent_count} emails sent successfully!")
+        else:
+            messagebox.showwarning("Partial Success", 
+                                 f"Sent: {sent_count}\nFailed: {failed_count}\nTotal: {total}")
+        
+        # Clear form
+        self.subject_entry.delete(0, tk.END)
+        self.message_text.delete(1.0, tk.END)
+        
+        # Refresh campaigns after sending
+        self.refresh_campaigns()
+    
+    def refresh_campaigns(self):
+        """Refresh campaign history and statistics"""
+        if not self.cloud_sync:
+            return
+        
+        try:
+            # Get user info for statistics
+            user_info = self.cloud_sync.get_user_info()
+            if user_info:
+                self.stats_labels['total'].config(text=str(user_info.get('total_emails_sent', 0)))
+                self.stats_labels['today'].config(text=str(user_info.get('daily_emails_sent', 0)))
+                self.stats_labels['month'].config(text=str(user_info.get('monthly_emails_sent', 0)))
+            
+            # Get campaign history
+            campaigns = self.cloud_sync.get_campaign_history()
+            if campaigns:
+                # Clear existing items
+                for item in self.campaigns_tree.get_children():
+                    self.campaigns_tree.delete(item)
+                
+                # Add campaigns to tree
+                for campaign in campaigns:
+                    date_str = campaign.get('timestamp', '')[:10]  # Extract date part
+                    success_rate = f"{campaign.get('success_rate', 0):.1f}%"
+                    
+                    self.campaigns_tree.insert('', 'end', values=(
+                        campaign.get('campaign_name', 'Unnamed'),
+                        campaign.get('emails_sent', 0),
+                        date_str,
+                        success_rate,
+                        campaign.get('status', 'unknown').title()
+                    ))
+        
+        except Exception as e:
+            print(f"Error refreshing campaigns: {e}")
     
     def get_recipients_list(self):
         """Get list of recipients from text area"""
