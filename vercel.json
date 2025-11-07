@@ -28,14 +28,7 @@
     }
   },
   "env": {
-    "PYTHON_VERSION": "3.9",
-    "DATABASE_URL": "@database-url",
-    "JWT_SECRET": "@jwt-secret",
-    "ADMIN_SECRET": "@admin-secret",
-    "POSTGRES_USER": "@postgres-user",
-    "POSTGRES_PASSWORD": "@postgres-password",
-    "POSTGRES_HOST": "@postgres-host",
-    "POSTGRES_DB": "@postgres-db"
+    "PYTHON_VERSION": "3.9"
   },
   "build": {
     "env": {
