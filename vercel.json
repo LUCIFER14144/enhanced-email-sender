@@ -11,11 +11,11 @@
     },
     {
       "src": "/api/(.*)",
-      "dest": "api/main.py"
+      "dest": "api/main_production.py"
     },
     {
       "src": "/admin/(.*)",
-      "dest": "api/main.py"
+      "dest": "api/main_production.py"
     },
     {
       "src": "/static/(.*)",
@@ -27,7 +27,7 @@
     }
   ],
   "functions": {
-    "api/main.py": {
+    "api/main_production.py": {
       "maxDuration": 30
     },
     "api/debug.py": {
