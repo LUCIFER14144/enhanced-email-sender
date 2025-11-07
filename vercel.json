@@ -2,35 +2,16 @@
   "version": 2,
   "routes": [
     {
-      "src": "/debug",
-      "dest": "api/debug.py"
-    },
-    {
-      "src": "/test",
-      "dest": "api/debug.py"
-    },
-    {
-      "src": "/api/(.*)",
-      "dest": "api/main_production.py"
-    },
-    {
-      "src": "/admin/(.*)",
-      "dest": "api/main_production.py"
-    },
-    {
       "src": "/static/(.*)",
       "dest": "admin/static/$1"
     },
     {
-      "src": "/",
-      "dest": "api/debug.py"
+      "src": "/(.*)",
+      "dest": "api/main_production.py"
     }
   ],
   "functions": {
     "api/main_production.py": {
-      "maxDuration": 30
-    },
-    "api/debug.py": {
       "maxDuration": 30
     }
   }

@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+from fastapi.exception_handlers import http_exception_handler
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 import os
@@ -17,12 +18,27 @@ import jwt
 import json
 from datetime import datetime, timedelta
 import logging
+import traceback
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Enhanced Email Sender API", version="1.0.0")
+
+# Global exception handler
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Global exception: {str(exc)}")
+    logger.error(f"Traceback: {traceback.format_exc()}")
+    return JSONResponse(
+        status_code=500,
+        content={
+            "message": "Internal server error",
+            "detail": str(exc),
+            "path": str(request.url)
+        }
+    )
 
 # CORS middleware
 app.add_middleware(
@@ -34,12 +50,14 @@ app.add_middleware(
 )
 
 # Templates and static files
+templates = None
 try:
     templates = Jinja2Templates(directory="admin/templates")
-    app.mount("/static", StaticFiles(directory="admin/static"), name="static")
+    logger.info("Templates loaded successfully")
 except Exception as e:
-    logger.warning(f"Could not mount static files: {e}")
-    templates = None
+    logger.warning(f"Could not load templates: {e}")
+
+# Don't mount static files here - let Vercel handle them via routing
 
 # Configuration
 JWT_SECRET = os.getenv("JWT_SECRET", "your-super-secret-jwt-key-change-in-production")
@@ -239,6 +257,7 @@ async def health_check():
     return {
         "status": "healthy",
         "database_connected": db.use_supabase,
+        "templates_loaded": templates is not None,
         "environment_variables": {
             "SUPABASE_URL": "✅" if SUPABASE_URL else "❌",
             "SUPABASE_ANON_KEY": "✅" if SUPABASE_ANON_KEY else "❌",
@@ -246,6 +265,32 @@ async def health_check():
             "ADMIN_USERNAME": "✅" if ADMIN_USERNAME else "❌",
             "ADMIN_PASSWORD": "✅" if ADMIN_PASSWORD else "❌"
         }
+    }
+
+@app.get("/debug")
+async def debug_info():
+    """Debug endpoint"""
+    return {
+        "message": "Debug Information",
+        "environment_variables": {
+            "SUPABASE_URL": "✅ Set" if SUPABASE_URL else "❌ Missing",
+            "SUPABASE_ANON_KEY": "✅ Set" if SUPABASE_ANON_KEY else "❌ Missing",
+            "JWT_SECRET": "✅ Set" if JWT_SECRET else "❌ Missing",
+            "ADMIN_USERNAME": "✅ Set" if ADMIN_USERNAME else "❌ Missing",
+            "ADMIN_PASSWORD": "✅ Set" if ADMIN_PASSWORD else "❌ Missing",
+        },
+        "database_status": "Supabase" if db.use_supabase else "Mock",
+        "templates_status": "Loaded" if templates else "Not loaded",
+        "total_mock_users": len(MOCK_USERS)
+    }
+
+@app.get("/test")
+async def test_endpoint():
+    """Simple test endpoint"""
+    return {
+        "message": "Test endpoint working",
+        "status": "success",
+        "timestamp": datetime.utcnow().isoformat()
     }
 
 @app.post("/api/auth/register")
@@ -333,27 +378,61 @@ async def validate_token(current_user: Dict = Depends(get_current_user)):
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_login_page(request: Request):
     """Admin login page"""
-    if not templates:
-        return HTMLResponse("""
-        <html><body>
-        <h1>Admin Login</h1>
-        <form method="post" action="/admin/login">
-            <p>Username: <input type="text" name="username" required></p>
-            <p>Password: <input type="password" name="password" required></p>
-            <p><input type="submit" value="Login"></p>
-        </form>
-        </body></html>
-        """)
+    try:
+        if templates:
+            return templates.TemplateResponse("admin_login.html", {"request": request})
+    except Exception as e:
+        logger.warning(f"Template error: {e}")
     
-    return templates.TemplateResponse("admin_login.html", {"request": request})
+    # Fallback HTML
+    return HTMLResponse("""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Enhanced Email Sender - Admin Login</title>
+        <style>
+            body { font-family: Arial, sans-serif; max-width: 400px; margin: 100px auto; padding: 20px; }
+            .login-form { background: #f5f5f5; padding: 30px; border-radius: 10px; }
+            input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; }
+            button { background: #007bff; color: white; padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; width: 100%; }
+            button:hover { background: #0056b3; }
+        </style>
+    </head>
+    <body>
+        <div class="login-form">
+            <h2>Admin Login</h2>
+            <form method="post" action="/admin/login">
+                <input type="text" name="username" placeholder="Username" required>
+                <input type="password" name="password" placeholder="Password" required>
+                <button type="submit">Login</button>
+            </form>
+        </div>
+    </body>
+    </html>
+    """)
 
 @app.post("/admin/login")
-async def admin_login(username: str = Form(...), password: str = Form(...)):
+async def admin_login(request: Request, username: str = Form(...), password: str = Form(...)):
     """Admin login"""
     if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
-        return RedirectResponse(url="/admin/dashboard", status_code=302)
+        # Check if request accepts JSON (API call) or HTML (form submission)
+        accept_header = request.headers.get("accept", "")
+        if "application/json" in accept_header:
+            return JSONResponse({
+                "success": True,
+                "message": "Admin login successful",
+                "redirect": "/admin/dashboard"
+            })
+        else:
+            return RedirectResponse(url="/admin/dashboard", status_code=302)
     else:
-        raise HTTPException(status_code=401, detail="Invalid admin credentials")
+        if "application/json" in request.headers.get("accept", ""):
+            return JSONResponse({
+                "success": False,
+                "message": "Invalid admin credentials"
+            }, status_code=401)
+        else:
+            raise HTTPException(status_code=401, detail="Invalid admin credentials")
 
 @app.get("/admin/dashboard", response_class=HTMLResponse)
 async def admin_dashboard(request: Request):
