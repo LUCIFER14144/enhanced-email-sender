@@ -480,38 +480,49 @@ Or register a new account above."""
             return
         
         user = self.cloud_sync.user_data
-        
+        # Normalize days_remaining: if missing, try derive from expires_at
+        days_remaining = user.get('days_remaining')
+        if days_remaining is None and user.get('expires_at'):
+            try:
+                from datetime import datetime
+                exp = user['expires_at'].replace('Z','')
+                days_remaining = max(0, (datetime.fromisoformat(exp) - datetime.now()).days)
+            except Exception:
+                days_remaining = 0
+        if days_remaining is None:
+            days_remaining = 0
+
         # Subscription info
         info_frame = ttk.LabelFrame(sub_frame, text="Subscription Information", padding="20")
         info_frame.pack(fill=tk.X, pady=(0, 20))
-        
+
         info_text = f"""
 👤 Username: {user.get('username', 'N/A')}
 📧 Email: {user.get('email', 'Not provided')}
 🎯 Subscription: {user.get('subscription_type', 'free').title()}
 ⏰ Expires: {user.get('expires_at', 'N/A')[:10] if user.get('expires_at') else 'N/A'}
-📅 Days Remaining: {user.get('days_remaining', 0)}
+📅 Days Remaining: {int(days_remaining)}
 📊 Emails Sent: {user.get('total_emails_sent', 0)}
         """.strip()
-        
-        ttk.Label(info_frame, text=info_text, font=('Courier New', 10), 
-                 justify=tk.LEFT).pack(anchor=tk.W)
-        
-        # Expiration warning
-        days_remaining = user.get('days_remaining', 0)
+
+        ttk.Label(info_frame, text=info_text, font=('Courier New', 10),
+                  justify=tk.LEFT).pack(anchor=tk.W)
+
+        # Expiration warning (use normalized value)
+        days_remaining = int(days_remaining)
         if days_remaining <= 30:
             warning_frame = ttk.LabelFrame(sub_frame, text="⚠️ Expiration Warning", padding="15")
             warning_frame.pack(fill=tk.X, pady=(0, 20))
-            
+
             if days_remaining <= 0:
                 warning_text = "🚨 Your subscription has EXPIRED! Contact admin to renew access."
             elif days_remaining <= 7:
                 warning_text = f"🚨 Your subscription expires in {days_remaining} days! Renew immediately."
             else:
                 warning_text = f"⚠️ Your subscription expires in {days_remaining} days. Plan for renewal."
-            
-            ttk.Label(warning_frame, text=warning_text, font=('Arial', 11, 'bold'), 
-                     foreground='red' if days_remaining <= 7 else 'orange').pack()
+
+            ttk.Label(warning_frame, text=warning_text, font=('Arial', 11, 'bold'),
+                      foreground='red' if days_remaining <= 7 else 'orange').pack()
     
     def create_settings_tab(self):
         """Create settings tab"""
@@ -545,13 +556,15 @@ Or register a new account above."""
     
     # Cloud integration methods
     def connect_to_cloud(self):
-        """Connect to cloud services"""
-        cloud_sync = create_cloud_login_window()
-        if cloud_sync:
-            self.cloud_sync = cloud_sync
-            self.update_cloud_status()
-            self.refresh_cloud_tab()
-            messagebox.showinfo("Success", "Connected to cloud successfully!")
+        """Connect to cloud services (avoid duplicate login if already connected)"""
+        # If already connected, don't open another login
+        if self.cloud_sync and getattr(self.cloud_sync, 'user_data', None):
+            username = self.cloud_sync.user_data.get('username', 'User')
+            messagebox.showinfo("Already connected", f"You're already connected as {username}.")
+            return
+
+        # Reuse the internal login flow for consistency
+        self.show_cloud_login()
     
     def update_cloud_status(self):
         """Update cloud connection status display"""

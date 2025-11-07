@@ -527,17 +527,51 @@ async def register_user(request: Request):
                 status_code=400
             )
         
-        # For now, simulate successful registration
+        # Create or update user in mock DB with reasonable expiration
+        from datetime import datetime, timedelta
+        # Determine expiration: free -> +30 days, premium -> +365 days, enterprise/admin -> +730 days
+        add_days = 30 if subscription_type == "free" else 365 if subscription_type == "premium" else 730
+        expires_at = (datetime.utcnow() + timedelta(days=add_days)).replace(microsecond=0).isoformat()
+
+        # If user exists, update; else add new
+        existing = next((u for u in MOCK_USERS_DB if u["username"] == username), None)
+        if existing:
+            existing.update({
+                "email": email,
+                "subscription_type": subscription_type,
+                "expires_at": expires_at,
+                "is_active": True,
+            })
+            # Store password for mock login (DO NOT DO THIS IN PRODUCTION)
+            existing["password"] = password
+            user_obj = existing
+        else:
+            new_user = {
+                "id": max(u["id"] for u in MOCK_USERS_DB) + 1 if MOCK_USERS_DB else 1,
+                "username": username,
+                "password": password,  # In production, store a hash!
+                "email": email,
+                "subscription_type": subscription_type,
+                "expires_at": expires_at,
+                "is_active": True,
+                "created_at": datetime.utcnow().isoformat(),
+                "total_emails_sent": 0,
+                "daily_emails_sent": 0,
+                "monthly_emails_sent": 0,
+                "last_email_date": None,
+            }
+            MOCK_USERS_DB.append(new_user)
+            user_obj = new_user
+
         return JSONResponse({
             "success": True,
             "message": "User registered successfully",
             "user": {
-                "id": 1,
-                "username": username,
-                "email": email,
-                "subscription_type": subscription_type,
-                "expires_at": "2025-12-06T23:59:59",
-                "note": "This is a demo response. Connect Supabase for real user management."
+                "id": user_obj["id"],
+                "username": user_obj["username"],
+                "email": user_obj.get("email", email),
+                "subscription_type": user_obj.get("subscription_type", subscription_type),
+                "expires_at": user_obj["expires_at"],
             }
         })
     except Exception as e:
@@ -646,6 +680,74 @@ async def validate_token():
         "message": "Token validation endpoint",
         "note": "This is a demo response. Implement JWT validation for production."
     }
+
+# Helper to compute days remaining for a user
+def _compute_days_remaining(expires_at_str: str) -> int:
+    from datetime import datetime
+    try:
+        # Support both 'YYYY-MM-DDTHH:MM:SS' and with 'Z'
+        clean = expires_at_str.replace('Z', '') if expires_at_str else None
+        if not clean:
+            return 0
+        expire_date = datetime.fromisoformat(clean)
+        today = datetime.now()
+        return max(0, (expire_date - today).days)
+    except Exception:
+        return 0
+
+@app.get("/api/auth/status")
+async def auth_status(request: Request):
+    """Return subscription status based on Bearer token pattern used in this demo."""
+    try:
+        auth_header = request.headers.get("Authorization", "")
+        token = None
+        if auth_header.startswith("Bearer "):
+            token = auth_header.split(" ", 1)[1]
+
+        if not token:
+            return JSONResponse({"success": False, "error": "Missing token"}, status_code=401)
+
+        # Extract username from our demo tokens: user-jwt-token-<username> or demo-jwt-token-<username>
+        username = None
+        if token.startswith("user-jwt-token-"):
+            username = token.replace("user-jwt-token-", "", 1)
+        elif token.startswith("demo-jwt-token-"):
+            username = token.replace("demo-jwt-token-", "", 1)
+
+        if not username:
+            return JSONResponse({"success": False, "error": "Invalid token"}, status_code=401)
+
+        # Look up user in mock DB
+        user = next((u for u in MOCK_USERS_DB if u["username"] == username), None)
+        if user:
+            days_remaining = _compute_days_remaining(user.get("expires_at"))
+            return JSONResponse({
+                "success": True,
+                "username": username,
+                "subscription_type": user.get("subscription_type", "free"),
+                "days_remaining": days_remaining,
+                "expires_at": user.get("expires_at"),
+            })
+
+        # Handle demo accounts not in MOCK_USERS_DB
+        if username in {"admin", "demo", "testuser"}:
+            # Mirror login demo expiry
+            from datetime import datetime
+            expire_date = datetime(2025, 12, 31, 23, 59, 59)
+            today = datetime.now()
+            days_remaining = max(0, (expire_date - today).days)
+            return JSONResponse({
+                "success": True,
+                "username": username,
+                "subscription_type": "premium" if username == "admin" else "free",
+                "days_remaining": days_remaining,
+                "expires_at": "2025-12-31T23:59:59",
+            })
+
+        # Unknown user
+        return JSONResponse({"success": False, "error": "User not found"}, status_code=404)
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
 
 # Debug endpoint
 @app.get("/debug")
