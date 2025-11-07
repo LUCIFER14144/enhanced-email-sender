@@ -45,11 +45,19 @@ class SupabaseClient:
             for key, value in filters.items():
                 params[f"{key}"] = f"eq.{value}"
         
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, headers=self.headers, params=params)
-            if response.status_code == 200:
-                return response.json()
-            return []
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url, headers=self.headers, params=params)
+                if response.status_code == 200:
+                    return response.json()
+                elif response.status_code == 404:
+                    return []
+                else:
+                    logger.error(f"Database error: {response.status_code} - {response.text}")
+                    raise HTTPException(status_code=500, detail="Database error occurred")
+        except Exception as e:
+            logger.error(f"Database connection error: {str(e)}")
+            raise HTTPException(status_code=500, detail="Could not connect to database")
     
     async def insert(self, table: str, data: Dict):
         url = f"{self.url}/rest/v1/{table}"

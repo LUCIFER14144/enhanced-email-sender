@@ -312,6 +312,21 @@ async def update_system_settings(settings: SystemSettings, request: Request):
 
 # Admin Campaign Management
 
+@app.get("/api/admin/campaigns")
+async def list_campaigns(request: Request):
+    """List all email campaigns"""
+    # Verify admin session
+    await verify_admin_session(request)
+    
+    try:
+        campaigns = await supabase.select("campaigns", "*")
+        if not campaigns:
+            return []
+        return campaigns
+    except Exception as e:
+        logger.error(f"Error listing campaigns: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error listing campaigns: {str(e)}")
+
 @app.post("/api/admin/campaigns")
 async def create_campaign(campaign: Campaign, request: Request):
     """Create a new email campaign"""
@@ -728,6 +743,7 @@ async def admin_add_user(
     subscription_type: str = Form("free"),
     expiration_days: int = Form(30),
     admin: bool = Depends(verify_admin_session)
+):
 ):
     """Add new user (admin only)"""
     try:

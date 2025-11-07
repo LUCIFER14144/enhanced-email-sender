@@ -1,72 +1,33 @@
 {
   "version": 2,
   "builds": [
-    { "src": "api/new_admin.py", "use": "@vercel/python" },
     { "src": "api/main.py", "use": "@vercel/python" },
     { "src": "admin/static/**", "use": "@vercel/static" }
   ],
   "routes": [
     {
-      "src": "/admin",
-      "dest": "/api/new_admin.py"
-    },
-    {
-      "src": "/admin/(.*)",
-      "dest": "/api/new_admin.py"
-    },
-    {
-      "src": "/api/admin/(.*)",
-      "methods": ["GET", "POST", "PUT", "DELETE"],
-      "dest": "/api/new_admin.py"
-    },
-    {
-      "src": "/static/(.*)",
-      "dest": "/admin/static/$1",
-      "headers": {
-        "cache-control": "public, max-age=31536000, immutable"
-      }
-    },
-    {
-      "src": "/favicon.ico",
-      "dest": "/admin/static/favicon.ico"
-    },
-    {
       "src": "/download",
       "dest": "/admin/static/download.html"
     },
     {
-      "src": "/desktop/Enhanced-Email-Sender.exe",
-      "dest": "/desktop/dist/Enhanced-Email-Sender.exe",
-      "headers": {
-        "content-type": "application/octet-stream",
-        "content-disposition": "attachment; filename=Enhanced-Email-Sender.exe"
-      }
-    },
-    {
-      "src": "/api/admin/users",
-      "methods": ["POST", "GET", "PUT", "DELETE"],
-      "dest": "/api/admin.py"
-    },
-    {
-      "src": "/api/admin/settings",
-      "methods": ["POST", "GET"],
-      "dest": "/api/admin.py"
-    },
-    {
-      "src": "/admin/(login|dashboard|logout|users|campaigns|settings)",
-      "dest": "/api/admin.py"
+      "src": "/static/(.*)",
+      "dest": "/admin/static/$1"
     },
     {
       "src": "/admin",
-      "dest": "/api/admin.py"
+      "dest": "/api/main.py"
+    },
+    {
+      "src": "/admin/(.*)",
+      "dest": "/api/main.py"
     },
     {
       "src": "/api/(.*)",
-      "dest": "/api/main_production.py"
+      "dest": "/api/main.py"
     },
     {
       "src": "/(.*)",
-      "dest": "/api/main_production.py"
+      "dest": "/api/main.py"
     }
   ],
   "env": {
