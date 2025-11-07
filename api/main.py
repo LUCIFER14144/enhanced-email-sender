@@ -105,9 +105,6 @@ class SupabaseClient:
     async def create_campaign(self, campaign_data: Dict):
         """Create a new campaign in Supabase"""
         return await self.insert("campaigns", campaign_data)
-            if response.status_code == 200:
-                return response.json()
-            raise HTTPException(status_code=400, detail="Update failed")
     
     async def delete(self, table: str, filters: Dict):
         """Delete data from Supabase table"""
