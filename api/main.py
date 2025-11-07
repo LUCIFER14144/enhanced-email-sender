@@ -59,8 +59,11 @@ class SupabaseClient:
         self.key = SUPABASE_SERVICE_KEY or SUPABASE_ANON_KEY
         
         if not self.url or not self.key:
-            logger.warning("Supabase credentials not configured - using mock mode")
+            logger.warning("Supabase credentials not configured - using mock mode with in-memory storage")
             self.mock_mode = True
+            # In-memory storage
+            self.mock_data = {"users": [], "email_campaigns": [], "recipient_lists": [], "user_settings": []}
+            self.next_id = 1
         else:
             self.mock_mode = False
             self.headers = {
@@ -72,7 +75,10 @@ class SupabaseClient:
     async def select(self, table: str, columns: str = "*", filters: Dict = None):
         """Select data from Supabase table"""
         if self.mock_mode:
-            return []
+            data = self.mock_data.get(table, [])
+            if filters:
+                return [item for item in data if all(item.get(k) == v for k, v in filters.items())]
+            return data
             
         url = f"{self.url}/rest/v1/{table}"
         params = {"select": columns}
@@ -94,7 +100,12 @@ class SupabaseClient:
     async def insert(self, table: str, data: Dict):
         """Insert data into Supabase table"""
         if self.mock_mode:
-            return [{"id": 1, **data}]
+            new_item = {"id": self.next_id, **data}
+            self.next_id += 1
+            if table not in self.mock_data:
+                self.mock_data[table] = []
+            self.mock_data[table].append(new_item)
+            return [new_item]
             
         url = f"{self.url}/rest/v1/{table}"
         
@@ -111,6 +122,10 @@ class SupabaseClient:
     async def update(self, table: str, data: Dict, filters: Dict):
         """Update data in Supabase table"""
         if self.mock_mode:
+            items = self.mock_data.get(table, [])
+            for item in items:
+                if all(item.get(k) == v for k, v in filters.items()):
+                    item.update(data)
             return [data]
             
         url = f"{self.url}/rest/v1/{table}"
@@ -136,6 +151,8 @@ class SupabaseClient:
     async def delete(self, table: str, filters: Dict):
         """Delete data from Supabase table"""
         if self.mock_mode:
+            items = self.mock_data.get(table, [])
+            self.mock_data[table] = [item for item in items if not all(item.get(k) == v for k, v in filters.items())]
             return True
             
         url = f"{self.url}/rest/v1/{table}"
