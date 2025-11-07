@@ -7,7 +7,7 @@ import requests
 import json
 
 # Your deployed URL
-BASE_URL = "https://perfected-vercelblasting-22ckg51sp-mds-projects-f21afbac.vercel.app"
+BASE_URL = "https://perfected-vercelblasting.vercel.app"
 
 def test_endpoint(endpoint, method="GET", data=None, description=""):
     """Test an endpoint and return results"""

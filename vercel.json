@@ -2,23 +2,16 @@
   "version": 2,
   "routes": [
     {
-      "src": "/simple",
-      "dest": "api/simple_test.py"
-    },
-    {
       "src": "/static/(.*)",
       "dest": "admin/static/$1"
     },
     {
       "src": "/(.*)",
-      "dest": "api/main_production.py"
+      "dest": "api/minimal.py"
     }
   ],
   "functions": {
-    "api/main_production.py": {
-      "maxDuration": 30
-    },
-    "api/simple_test.py": {
+    "api/minimal.py": {
       "maxDuration": 30
     }
   }
