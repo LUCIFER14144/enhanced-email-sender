@@ -1,5 +1,8 @@
 {
   "version": 2,
+  "builds": [
+    { "src": "api/*.py", "use": "@vercel/python" }
+  ],
   "routes": [
     {
       "src": "/static/(.*)",
@@ -26,23 +29,17 @@
     },
     {
       "src": "/admin/(.*)",
-      "dest": "/api/index.py"
+      "dest": "/api/admin.py"
     },
     {
       "src": "/admin",
-      "dest": "/api/index.py"
+      "dest": "/api/admin.py"
     },
     {
       "src": "/(.*)",
-      "dest": "/api/index.py"
+      "dest": "/api/main_production.py"
     }
   ],
-  "functions": {
-    "api/index.py": {
-      "maxDuration": 60,
-      "memory": 1024
-    }
-  },
   "env": {
     "PYTHON_VERSION": "3.9"
   },
