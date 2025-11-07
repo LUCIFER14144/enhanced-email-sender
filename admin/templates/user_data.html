@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Data - {{ user.username }} - Enhanced Email Sender</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f8f9fa;
+            line-height: 1.6;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5rem 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+            border: 1px solid #e9ecef;
+        }
+        
+        .card h2 {
+            color: #495057;
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 0.5rem;
+        }
+        
+        .user-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .info-value {
+            font-size: 1.1rem;
+            color: #495057;
+        }
+        
+        .badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: inline-block;
+            width: fit-content;
+        }
+        
+        .badge-success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .badge-danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .badge-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .badge-primary {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        
+        .table th,
+        .table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+            font-size: 0.9rem;
+        }
+        
+        .table tbody tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .email-list {
+            max-height: 300px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .email-item {
+            padding: 0.25rem 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            color: #495057;
+        }
+        
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-outline {
+            background: transparent;
+            color: white;
+            border: 1px solid white;
+        }
+        
+        .btn-outline:hover {
+            background: white;
+            color: #667eea;
+        }
+        
+        .settings-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .settings-item:last-child {
+            border-bottom: none;
+        }
+        
+        .settings-key {
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .settings-value {
+            color: #6c757d;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: #6c757d;
+            font-style: italic;
+        }
+        
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .summary-item {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .summary-number {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .summary-label {
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin-top: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <div>
+                <h1>👤 User Details: {{ user.username }}</h1>
+                <p>Complete user data and activity overview</p>
+            </div>
+            <div>
+                <a href="/admin/dashboard" class="btn btn-outline">← Back to Dashboard</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- User Information -->
+        <div class="card">
+            <h2>👤 User Information</h2>
+            <div class="user-info">
+                <div class="info-item">
+                    <div class="info-label">User ID</div>
+                    <div class="info-value">#{{ user.id }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Username</div>
+                    <div class="info-value"><strong>{{ user.username }}</strong></div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Email</div>
+                    <div class="info-value">{{ user.email or 'Not provided' }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Subscription Type</div>
+                    <div class="info-value">
+                        <span class="badge badge-{% if user.subscription_type == 'premium' %}success{% elif user.subscription_type == 'enterprise' %}primary{% else %}warning{% endif %}">
+                            {{ user.subscription_type.title() }}
+                        </span>
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Account Status</div>
+                    <div class="info-value">
+                        {% if user.is_active and user.days_remaining > 0 %}
+                            <span class="badge badge-success">Active</span>
+                        {% else %}
+                            <span class="badge badge-danger">Inactive</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Days Remaining</div>
+                    <div class="info-value">
+                        <span class="badge badge-{% if user.days_remaining <= 0 %}danger{% elif user.days_remaining <= 7 %}warning{% else %}success{% endif %}">
+                            {{ user.days_remaining }} days
+                        </span>
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Expires At</div>
+                    <div class="info-value">{{ user.expires_at[:19] if user.expires_at else 'N/A' }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Created At</div>
+                    <div class="info-value">{{ user.created_at[:19] if user.created_at else 'N/A' }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Last Login</div>
+                    <div class="info-value">{{ user.last_login[:19] if user.last_login else 'Never' }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Total Emails Sent</div>
+                    <div class="info-value"><strong>{{ user.total_emails_sent or 0 }}</strong></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Statistics -->
+        <div class="card">
+            <h2>📊 Usage Summary</h2>
+            <div class="summary-grid">
+                <div class="summary-item">
+                    <div class="summary-number">{{ recipient_lists|length }}</div>
+                    <div class="summary-label">Recipient Lists</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-number">
+                        {% set total_recipients = 0 %}
+                        {% for list in recipient_lists %}
+                            {% set total_recipients = total_recipients + list.count %}
+                        {% endfor %}
+                        {{ total_recipients }}
+                    </div>
+                    <div class="summary-label">Total Recipients</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-number">{{ campaigns|length }}</div>
+                    <div class="summary-label">Email Campaigns</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-number">{{ user.total_emails_sent or 0 }}</div>
+                    <div class="summary-label">Emails Sent</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recipient Lists -->
+        <div class="card">
+            <h2>📧 Recipient Lists ({{ recipient_lists|length }})</h2>
+            {% if recipient_lists %}
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>List Name</th>
+                            <th>Recipients Count</th>
+                            <th>Created</th>
+                            <th>Last Updated</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for list in recipient_lists %}
+                        <tr>
+                            <td><strong>{{ list.list_name }}</strong></td>
+                            <td>{{ list.count }} recipients</td>
+                            <td>{{ list.created_at[:10] if list.created_at else 'N/A' }}</td>
+                            <td>{{ list.updated_at[:10] if list.updated_at else 'N/A' }}</td>
+                            <td>
+                                <button onclick="showRecipients({{ list.id }})" class="btn" style="background: #007bff; color: white; font-size: 0.8rem; padding: 0.25rem 0.5rem;">View Recipients</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="empty-state">
+                    📭 No recipient lists found for this user
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Email Campaigns -->
+        <div class="card">
+            <h2>📬 Email Campaigns ({{ campaigns|length }})</h2>
+            {% if campaigns %}
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Campaign Name</th>
+                            <th>Status</th>
+                            <th>Progress</th>
+                            <th>Created</th>
+                            <th>Completed</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for campaign in campaigns %}
+                        <tr>
+                            <td><strong>{{ campaign.campaign_name }}</strong></td>
+                            <td>
+                                <span class="badge badge-{% if campaign.status == 'completed' %}success{% elif campaign.status == 'failed' %}danger{% elif campaign.status == 'sending' %}primary{% else %}warning{% endif %}">
+                                    {{ campaign.status.title() }}
+                                </span>
+                            </td>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <div style="background: #e9ecef; border-radius: 10px; overflow: hidden; height: 8px; width: 100px;">
+                                        <div style="background: #28a745; height: 100%; width: {{ (campaign.sent_emails / campaign.total_emails * 100) if campaign.total_emails else 0 }}%;"></div>
+                                    </div>
+                                    <span style="font-size: 0.8rem;">{{ campaign.sent_emails }}/{{ campaign.total_emails }}</span>
+                                </div>
+                            </td>
+                            <td>{{ campaign.created_at[:10] if campaign.created_at else 'N/A' }}</td>
+                            <td>{{ campaign.completed_at[:10] if campaign.completed_at else 'N/A' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="empty-state">
+                    📭 No email campaigns found for this user
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- User Settings -->
+        <div class="card">
+            <h2>⚙️ User Settings</h2>
+            {% if settings %}
+                {% for key, value in settings.items() %}
+                <div class="settings-item">
+                    <div class="settings-key">{{ key }}</div>
+                    <div class="settings-value">{{ value }}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    ⚙️ No custom settings configured for this user
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Modal for viewing recipients -->
+    <div id="recipientsModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 2rem; border-radius: 12px; width: 90%; max-width: 600px; max-height: 80vh; overflow-y: auto;">
+            <h3 id="modalTitle" style="margin-bottom: 1rem;">Recipients</h3>
+            <div id="modalContent" class="email-list"></div>
+            <button onclick="closeModal()" style="margin-top: 1rem; background: #6c757d; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer;">Close</button>
+        </div>
+    </div>
+
+    <script>
+        function showRecipients(listId) {
+            const recipientLists = {{ recipient_lists | tojson }};
+            const list = recipientLists.find(l => l.id === listId);
+            
+            if (list) {
+                document.getElementById('modalTitle').textContent = `Recipients in "${list.list_name}"`;
+                const content = document.getElementById('modalContent');
+                content.innerHTML = '';
+                
+                list.recipients.forEach(email => {
+                    const div = document.createElement('div');
+                    div.className = 'email-item';
+                    div.textContent = email;
+                    content.appendChild(div);
+                });
+                
+                document.getElementById('recipientsModal').style.display = 'block';
+            }
+        }
+        
+        function closeModal() {
+            document.getElementById('recipientsModal').style.display = 'none';
+        }
+        
+        // Close modal when clicking outside
+        document.getElementById('recipientsModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+</html>

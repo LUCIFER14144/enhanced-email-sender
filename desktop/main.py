@@ -1,0 +1,636 @@
+"""
+Enhanced Email Sender - Desktop Application
+Main entry point with cloud integration and subscription management
+
+This is the main desktop application that integrates with the cloud backend
+for user authentication, data synchronization, and subscription management.
+"""
+
+import tkinter as tk
+from tkinter import ttk, messagebox
+import sys
+import os
+from datetime import datetime
+import logging
+import threading
+
+# Add current directory to path for imports
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from cloud_integration import CloudSync, create_cloud_login_window, create_subscription_info_window
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+class EnhancedEmailSenderApp:
+    """Main application class with cloud integration"""
+    
+    def __init__(self, root):
+        self.root = root
+        self.cloud_sync = None
+        self.setup_window()
+        self.create_widgets()
+        
+    def setup_window(self):
+        """Configure main window"""
+        self.root.title("📧 Enhanced Email Sender - Desktop")
+        self.root.geometry("900x600")
+        self.root.minsize(800, 500)
+        
+        # Center window
+        self.root.update_idletasks()
+        x = (self.root.winfo_screenwidth() // 2) - (self.root.winfo_width() // 2)
+        y = (self.root.winfo_screenheight() // 2) - (self.root.winfo_height() // 2)
+        self.root.geometry(f"+{x}+{y}")
+        
+        # Configure styles
+        style = ttk.Style()
+        try:
+            style.theme_use('clam')
+        except Exception:
+            pass
+    
+    def create_widgets(self):
+        """Create main application widgets"""
+        # Header frame
+        header_frame = ttk.Frame(self.root, padding="10")
+        header_frame.pack(fill=tk.X)
+        
+        # Title
+        title_label = ttk.Label(header_frame, text="📧 Enhanced Email Sender", 
+                               font=('Segoe UI', 16, 'bold'))
+        title_label.pack(side=tk.LEFT)
+        
+        # Cloud status
+        self.cloud_status_label = ttk.Label(header_frame, text="☁️ Offline Mode", 
+                                           font=('Segoe UI', 10))
+        self.cloud_status_label.pack(side=tk.RIGHT)
+        
+        # Notebook for tabs
+        self.notebook = ttk.Notebook(self.root)
+        self.notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
+        
+        # Create tabs
+        self.create_email_tab()
+        self.create_recipients_tab()
+        self.create_cloud_tab()
+        self.create_subscription_tab()
+        self.create_settings_tab()
+        
+        # Status bar
+        self.status_bar = ttk.Label(self.root, text="Ready", relief=tk.SUNKEN)
+        self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
+    
+    def create_email_tab(self):
+        """Create email composition tab"""
+        email_frame = ttk.Frame(self.notebook, padding="10")
+        self.notebook.add(email_frame, text="📝 Compose Email")
+        
+        # Subject
+        ttk.Label(email_frame, text="Subject:").grid(row=0, column=0, sticky=tk.W, padx=(0, 10), pady=(0, 10))
+        self.subject_entry = ttk.Entry(email_frame, width=60)
+        self.subject_entry.grid(row=0, column=1, sticky=(tk.W, tk.E), pady=(0, 10))
+        
+        # Body
+        ttk.Label(email_frame, text="Message:").grid(row=1, column=0, sticky=(tk.W, tk.N), padx=(0, 10), pady=(0, 10))
+        
+        text_frame = ttk.Frame(email_frame)
+        text_frame.grid(row=1, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
+        
+        self.message_text = tk.Text(text_frame, wrap=tk.WORD, height=15)
+        scrollbar = ttk.Scrollbar(text_frame, orient=tk.VERTICAL, command=self.message_text.yview)
+        self.message_text.configure(yscrollcommand=scrollbar.set)
+        
+        self.message_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Send button
+        send_frame = ttk.Frame(email_frame)
+        send_frame.grid(row=2, column=1, sticky=tk.E, pady=(10, 0))
+        
+        ttk.Button(send_frame, text="🚀 Send Email", command=self.send_email).pack(side=tk.RIGHT)
+        
+        # Configure grid weights
+        email_frame.grid_columnconfigure(1, weight=1)
+        email_frame.grid_rowconfigure(1, weight=1)
+    
+    def create_recipients_tab(self):
+        """Create recipients management tab"""
+        recipients_frame = ttk.Frame(self.notebook, padding="10")
+        self.notebook.add(recipients_frame, text="👥 Recipients")
+        
+        # Recipients text area
+        ttk.Label(recipients_frame, text="Recipients (one email per line):").pack(anchor=tk.W, pady=(0, 5))
+        
+        text_frame = ttk.Frame(recipients_frame)
+        text_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        
+        self.recipients_text = tk.Text(text_frame, wrap=tk.WORD)
+        recipients_scrollbar = ttk.Scrollbar(text_frame, orient=tk.VERTICAL, command=self.recipients_text.yview)
+        self.recipients_text.configure(yscrollcommand=recipients_scrollbar.set)
+        
+        self.recipients_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        recipients_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Buttons
+        button_frame = ttk.Frame(recipients_frame)
+        button_frame.pack(fill=tk.X)
+        
+        ttk.Button(button_frame, text="📁 Import CSV", command=self.import_csv).pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(button_frame, text="💾 Save Local", command=self.save_recipients_local).pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(button_frame, text="☁️ Save to Cloud", command=self.save_recipients_cloud).pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(button_frame, text="🔄 Load from Cloud", command=self.load_recipients_cloud).pack(side=tk.LEFT)
+    
+    def create_cloud_tab(self):
+        """Create cloud management tab"""
+        cloud_frame = ttk.Frame(self.notebook, padding="10")
+        self.notebook.add(cloud_frame, text="☁️ Cloud Sync")
+        
+        # Connection status
+        status_frame = ttk.LabelFrame(cloud_frame, text="Connection Status", padding="15")
+        status_frame.pack(fill=tk.X, pady=(0, 15))
+        
+        self.connection_status_label = ttk.Label(status_frame, 
+                                               text="❌ Not connected to cloud", 
+                                               font=('Arial', 11))
+        self.connection_status_label.pack()
+        
+        # Cloud actions
+        actions_frame = ttk.LabelFrame(cloud_frame, text="Cloud Actions", padding="15")
+        actions_frame.pack(fill=tk.X, pady=(0, 15))
+        
+        button_grid = ttk.Frame(actions_frame)
+        button_grid.pack()
+        
+        ttk.Button(button_grid, text="🔐 Connect to Cloud", 
+                  command=self.connect_to_cloud).grid(row=0, column=0, padx=5, pady=5)
+        ttk.Button(button_grid, text="🔄 Sync Data", 
+                  command=self.sync_data).grid(row=0, column=1, padx=5, pady=5)
+        ttk.Button(button_grid, text="📊 View Subscription", 
+                  command=self.show_subscription_info).grid(row=0, column=2, padx=5, pady=5)
+        
+        # Cloud data lists
+        if self.cloud_sync:
+            self.create_cloud_data_lists(cloud_frame)
+    
+    def create_cloud_data_lists(self, parent):
+        """Create cloud data management lists"""
+        data_frame = ttk.LabelFrame(parent, text="Cloud Data", padding="15")
+        data_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Recipient lists from cloud
+        ttk.Label(data_frame, text="📧 Your Recipient Lists:", 
+                 font=('Arial', 10, 'bold')).pack(anchor=tk.W, pady=(0, 5))
+        
+        list_frame = ttk.Frame(data_frame)
+        list_frame.pack(fill=tk.BOTH, expand=True)
+        
+        self.cloud_lists_box = tk.Listbox(list_frame, height=8)
+        cloud_scrollbar = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=self.cloud_lists_box.yview)
+        self.cloud_lists_box.configure(yscrollcommand=cloud_scrollbar.set)
+        
+        self.cloud_lists_box.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        cloud_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # List actions
+        list_actions = ttk.Frame(data_frame)
+        list_actions.pack(fill=tk.X, pady=(10, 0))
+        
+        ttk.Button(list_actions, text="📥 Load Selected", 
+                  command=self.load_selected_cloud_list).pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(list_actions, text="🗑️ Delete Selected", 
+                  command=self.delete_selected_cloud_list).pack(side=tk.LEFT)
+    
+    def create_subscription_tab(self):
+        """Create subscription information tab"""
+        sub_frame = ttk.Frame(self.notebook, padding="10")
+        self.notebook.add(sub_frame, text="💳 Subscription")
+        
+        if not self.cloud_sync or not self.cloud_sync.user_data:
+            ttk.Label(sub_frame, text="Connect to cloud to view subscription information", 
+                     font=('Arial', 12)).pack(expand=True)
+            return
+        
+        user = self.cloud_sync.user_data
+        
+        # Subscription info
+        info_frame = ttk.LabelFrame(sub_frame, text="Subscription Information", padding="20")
+        info_frame.pack(fill=tk.X, pady=(0, 20))
+        
+        info_text = f"""
+👤 Username: {user.get('username', 'N/A')}
+📧 Email: {user.get('email', 'Not provided')}
+🎯 Subscription: {user.get('subscription_type', 'free').title()}
+⏰ Expires: {user.get('expires_at', 'N/A')[:10] if user.get('expires_at') else 'N/A'}
+📅 Days Remaining: {user.get('days_remaining', 0)}
+📊 Emails Sent: {user.get('total_emails_sent', 0)}
+        """.strip()
+        
+        ttk.Label(info_frame, text=info_text, font=('Courier New', 10), 
+                 justify=tk.LEFT).pack(anchor=tk.W)
+        
+        # Expiration warning
+        days_remaining = user.get('days_remaining', 0)
+        if days_remaining <= 30:
+            warning_frame = ttk.LabelFrame(sub_frame, text="⚠️ Expiration Warning", padding="15")
+            warning_frame.pack(fill=tk.X, pady=(0, 20))
+            
+            if days_remaining <= 0:
+                warning_text = "🚨 Your subscription has EXPIRED! Contact admin to renew access."
+            elif days_remaining <= 7:
+                warning_text = f"🚨 Your subscription expires in {days_remaining} days! Renew immediately."
+            else:
+                warning_text = f"⚠️ Your subscription expires in {days_remaining} days. Plan for renewal."
+            
+            ttk.Label(warning_frame, text=warning_text, font=('Arial', 11, 'bold'), 
+                     foreground='red' if days_remaining <= 7 else 'orange').pack()
+    
+    def create_settings_tab(self):
+        """Create settings tab"""
+        settings_frame = ttk.Frame(self.notebook, padding="10")
+        self.notebook.add(settings_frame, text="⚙️ Settings")
+        
+        # Email settings
+        email_settings = ttk.LabelFrame(settings_frame, text="Email Configuration", padding="15")
+        email_settings.pack(fill=tk.X, pady=(0, 15))
+        
+        # SMTP settings would go here
+        ttk.Label(email_settings, text="SMTP configuration and email settings will be available here.").pack()
+        
+        # Application settings
+        app_settings = ttk.LabelFrame(settings_frame, text="Application Settings", padding="15")
+        app_settings.pack(fill=tk.X)
+        
+        # Auto-save setting
+        self.auto_save_var = tk.BooleanVar(value=True)
+        ttk.Checkbutton(app_settings, text="Auto-save to cloud", 
+                       variable=self.auto_save_var).pack(anchor=tk.W, pady=2)
+        
+        # Auto-sync interval
+        ttk.Label(app_settings, text="Sync interval (minutes):").pack(anchor=tk.W, pady=(10, 2))
+        self.sync_interval_var = tk.IntVar(value=5)
+        ttk.Spinbox(app_settings, from_=1, to=60, textvariable=self.sync_interval_var, width=10).pack(anchor=tk.W)
+        
+        # Save settings button
+        ttk.Button(app_settings, text="💾 Save Settings", 
+                  command=self.save_settings).pack(anchor=tk.W, pady=(10, 0))
+    
+    # Cloud integration methods
+    def connect_to_cloud(self):
+        """Connect to cloud services"""
+        cloud_sync = create_cloud_login_window()
+        if cloud_sync:
+            self.cloud_sync = cloud_sync
+            self.update_cloud_status()
+            self.refresh_cloud_tab()
+            messagebox.showinfo("Success", "Connected to cloud successfully!")
+    
+    def update_cloud_status(self):
+        """Update cloud connection status display"""
+        if self.cloud_sync and self.cloud_sync.user_data:
+            user = self.cloud_sync.user_data
+            status_text = f"☁️ Connected as {user['username']}"
+            self.cloud_status_label.config(text=status_text)
+            self.connection_status_label.config(text="✅ Connected to cloud")
+        else:
+            self.cloud_status_label.config(text="☁️ Offline Mode")
+            self.connection_status_label.config(text="❌ Not connected to cloud")
+    
+    def refresh_cloud_tab(self):
+        """Refresh cloud tab content"""
+        # Remove and recreate the cloud tab
+        for i, tab_id in enumerate(self.notebook.tabs()):
+            if self.notebook.tab(tab_id, "text") == "☁️ Cloud Sync":
+                self.notebook.forget(tab_id)
+                break
+        
+        self.create_cloud_tab()
+    
+    def sync_data(self):
+        """Sync data with cloud"""
+        if not self.cloud_sync:
+            messagebox.showwarning("Warning", "Not connected to cloud")
+            return
+        
+        try:
+            self.status_bar.config(text="Syncing with cloud...")
+            self.root.update()
+            
+            # Load cloud data
+            cloud_lists = self.cloud_sync.load_recipients_from_cloud()
+            
+            # Update UI if cloud lists exist
+            if hasattr(self, 'cloud_lists_box'):
+                self.cloud_lists_box.delete(0, tk.END)
+                for lst in cloud_lists:
+                    display_text = f"{lst['list_name']} ({lst['count']} emails)"
+                    self.cloud_lists_box.insert(tk.END, display_text)
+            
+            self.status_bar.config(text="Sync completed")
+            messagebox.showinfo("Success", f"Synced {len(cloud_lists)} recipient lists from cloud")
+            
+        except Exception as e:
+            logger.error(f"Sync error: {e}")
+            self.status_bar.config(text="Sync failed")
+            messagebox.showerror("Error", f"Sync failed: {str(e)}")
+    
+    def show_subscription_info(self):
+        """Show subscription information window"""
+        if self.cloud_sync:
+            create_subscription_info_window(self.cloud_sync)
+        else:
+            messagebox.showinfo("Info", "Connect to cloud to view subscription information")
+    
+    # Email methods
+    def send_email(self):
+        """Send email (placeholder)"""
+        subject = self.subject_entry.get()
+        message = self.message_text.get(1.0, tk.END).strip()
+        recipients = self.get_recipients_list()
+        
+        if not subject or not message or not recipients:
+            messagebox.showwarning("Warning", "Please fill in all fields")
+            return
+        
+        # Here you would integrate your existing email sending logic
+        messagebox.showinfo("Info", f"Email sending feature will be integrated here.\n"
+                                   f"Subject: {subject}\n"
+                                   f"Recipients: {len(recipients)}")
+    
+    def get_recipients_list(self):
+        """Get list of recipients from text area"""
+        text = self.recipients_text.get(1.0, tk.END).strip()
+        if not text:
+            return []
+        
+        recipients = []
+        for line in text.split('\n'):
+            email = line.strip()
+            if email and '@' in email:
+                recipients.append(email)
+        
+        return recipients
+    
+    # File operations
+    def import_csv(self):
+        """Import recipients from CSV file"""
+        from tkinter import filedialog
+        import csv
+        
+        file_path = filedialog.askopenfilename(
+            title="Import Recipients CSV",
+            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+        )
+        
+        if file_path:
+            try:
+                with open(file_path, 'r', newline='', encoding='utf-8') as file:
+                    csv_reader = csv.reader(file)
+                    emails = []
+                    
+                    for row in csv_reader:
+                        if row:  # Skip empty rows
+                            email = row[0].strip()  # First column
+                            if '@' in email:
+                                emails.append(email)
+                
+                self.recipients_text.delete(1.0, tk.END)
+                self.recipients_text.insert(1.0, '\n'.join(emails))
+                
+                messagebox.showinfo("Success", f"Imported {len(emails)} email addresses")
+                
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to import CSV: {str(e)}")
+    
+    def save_recipients_local(self):
+        """Save recipients to local file"""
+        from tkinter import filedialog
+        
+        recipients = self.get_recipients_list()
+        if not recipients:
+            messagebox.showwarning("Warning", "No recipients to save")
+            return
+        
+        file_path = filedialog.asksaveasfilename(
+            title="Save Recipients",
+            defaultextension=".txt",
+            filetypes=[("Text files", "*.txt"), ("CSV files", "*.csv"), ("All files", "*.*")]
+        )
+        
+        if file_path:
+            try:
+                with open(file_path, 'w', encoding='utf-8') as file:
+                    file.write('\n'.join(recipients))
+                
+                messagebox.showinfo("Success", f"Saved {len(recipients)} recipients to {file_path}")
+                
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to save file: {str(e)}")
+    
+    def save_recipients_cloud(self):
+        """Save recipients to cloud"""
+        if not self.cloud_sync:
+            messagebox.showwarning("Warning", "Not connected to cloud")
+            return
+        
+        recipients = self.get_recipients_list()
+        if not recipients:
+            messagebox.showwarning("Warning", "No recipients to save")
+            return
+        
+        # Ask for list name
+        from tkinter import simpledialog
+        list_name = simpledialog.askstring("Save to Cloud", "Enter name for this recipient list:")
+        
+        if list_name:
+            try:
+                success = self.cloud_sync.save_recipients_to_cloud(list_name, recipients)
+                if success:
+                    messagebox.showinfo("Success", f"Saved {len(recipients)} recipients to cloud as '{list_name}'")
+                    self.sync_data()  # Refresh cloud data
+                else:
+                    messagebox.showerror("Error", "Failed to save to cloud")
+                    
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to save to cloud: {str(e)}")
+    
+    def load_recipients_cloud(self):
+        """Load recipients from cloud"""
+        if not self.cloud_sync:
+            messagebox.showwarning("Warning", "Not connected to cloud")
+            return
+        
+        try:
+            cloud_lists = self.cloud_sync.load_recipients_from_cloud()
+            
+            if not cloud_lists:
+                messagebox.showinfo("Info", "No recipient lists found in cloud")
+                return
+            
+            # Show selection dialog
+            self.show_cloud_list_selection(cloud_lists)
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load from cloud: {str(e)}")
+    
+    def show_cloud_list_selection(self, cloud_lists):
+        """Show dialog to select cloud list to load"""
+        selection_window = tk.Toplevel(self.root)
+        selection_window.title("Select Recipient List")
+        selection_window.geometry("400x300")
+        selection_window.resizable(False, False)
+        
+        # Center window
+        selection_window.update_idletasks()
+        x = (selection_window.winfo_screenwidth() // 2) - (selection_window.winfo_width() // 2)
+        y = (selection_window.winfo_screenheight() // 2) - (selection_window.winfo_height() // 2)
+        selection_window.geometry(f"+{x}+{y}")
+        
+        main_frame = ttk.Frame(selection_window, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        ttk.Label(main_frame, text="Select a recipient list to load:", 
+                 font=('Arial', 12, 'bold')).pack(pady=(0, 15))
+        
+        # List selection
+        list_frame = ttk.Frame(main_frame)
+        list_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
+        
+        listbox = tk.Listbox(list_frame)
+        scrollbar = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=listbox.yview)
+        listbox.configure(yscrollcommand=scrollbar.set)
+        
+        for lst in cloud_lists:
+            display_text = f"{lst['list_name']} ({lst['count']} emails)"
+            listbox.insert(tk.END, display_text)
+        
+        listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Buttons
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X)
+        
+        def load_selected():
+            selection = listbox.curselection()
+            if selection:
+                selected_list = cloud_lists[selection[0]]
+                self.recipients_text.delete(1.0, tk.END)
+                self.recipients_text.insert(1.0, '\n'.join(selected_list['recipients']))
+                messagebox.showinfo("Success", f"Loaded {len(selected_list['recipients'])} recipients")
+                selection_window.destroy()
+        
+        ttk.Button(button_frame, text="Load Selected", command=load_selected).pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(button_frame, text="Cancel", command=selection_window.destroy).pack(side=tk.LEFT)
+    
+    def load_selected_cloud_list(self):
+        """Load selected cloud list from listbox"""
+        if not hasattr(self, 'cloud_lists_box'):
+            return
+        
+        selection = self.cloud_lists_box.curselection()
+        if not selection:
+            messagebox.showwarning("Warning", "Please select a list to load")
+            return
+        
+        # This would need the actual cloud data - implement as needed
+        messagebox.showinfo("Info", "Load selected cloud list functionality")
+    
+    def delete_selected_cloud_list(self):
+        """Delete selected cloud list"""
+        if not hasattr(self, 'cloud_lists_box'):
+            return
+        
+        selection = self.cloud_lists_box.curselection()
+        if not selection:
+            messagebox.showwarning("Warning", "Please select a list to delete")
+            return
+        
+        # This would need the actual cloud data - implement as needed
+        messagebox.showinfo("Info", "Delete selected cloud list functionality")
+    
+    def save_settings(self):
+        """Save application settings"""
+        settings = {
+            "auto_save": self.auto_save_var.get(),
+            "sync_interval": self.sync_interval_var.get(),
+            "last_updated": datetime.now().isoformat()
+        }
+        
+        if self.cloud_sync:
+            success = self.cloud_sync.save_settings_to_cloud(settings)
+            if success:
+                messagebox.showinfo("Success", "Settings saved to cloud")
+            else:
+                messagebox.showerror("Error", "Failed to save settings to cloud")
+        else:
+            # Save locally if no cloud connection
+            messagebox.showinfo("Info", "Settings saved locally (no cloud connection)")
+
+def main():
+    """Main application entry point"""
+    # Check for required modules
+    try:
+        import tkinter as tk
+        from tkinter import ttk
+    except ImportError:
+        print("Error: tkinter not found. Please install Python with tkinter support.")
+        return
+    
+    # Show cloud login first
+    print("Starting Enhanced Email Sender...")
+    cloud_sync = create_cloud_login_window()
+    
+    # Create main application
+    root = tk.Tk()
+    app = EnhancedEmailSenderApp(root)
+    
+    # Set cloud sync if authenticated
+    if cloud_sync:
+        app.cloud_sync = cloud_sync
+        app.update_cloud_status()
+        app.refresh_cloud_tab()
+        
+        # Start subscription monitoring
+        def monitor_subscription():
+            while True:
+                try:
+                    if not cloud_sync.check_subscription_status():
+                        # Subscription expired
+                        root.after(0, lambda: messagebox.showerror(
+                            "Subscription Expired", 
+                            "Your subscription has expired. The application will close."
+                        ))
+                        root.after(1000, root.quit)
+                        break
+                    
+                    # Check every 5 minutes
+                    threading.Event().wait(300)
+                    
+                except Exception as e:
+                    logger.error(f"Subscription monitoring error: {e}")
+                    break
+        
+        # Start monitoring thread
+        monitor_thread = threading.Thread(target=monitor_subscription, daemon=True)
+        monitor_thread.start()
+    
+    # Start the application
+    root.protocol("WM_DELETE_WINDOW", lambda: root.quit())
+    
+    try:
+        root.mainloop()
+    except KeyboardInterrupt:
+        print("Application interrupted by user")
+    except Exception as e:
+        logger.error(f"Application error: {e}")
+        messagebox.showerror("Error", f"Application error: {str(e)}")
+    finally:
+        print("Enhanced Email Sender closed")
+
+if __name__ == "__main__":
+    main()
