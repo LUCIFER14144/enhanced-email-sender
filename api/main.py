@@ -46,6 +46,13 @@ ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
 security = HTTPBearer()
 
 # Supabase client setup
+class Campaign(BaseModel):
+    name: str
+    template_type: str
+    subject: str
+    content: str
+    recipients: str
+
 class SupabaseClient:
     def __init__(self):
         self.url = SUPABASE_URL
@@ -91,6 +98,13 @@ class SupabaseClient:
         
         async with httpx.AsyncClient() as client:
             response = await client.patch(url, headers=self.headers, params=params, json=data)
+            if response.status_code in [200, 201]:
+                return response.json()
+            raise HTTPException(status_code=400, detail="Update failed")
+
+    async def create_campaign(self, campaign_data: Dict):
+        """Create a new campaign in Supabase"""
+        return await self.insert("campaigns", campaign_data)
             if response.status_code == 200:
                 return response.json()
             raise HTTPException(status_code=400, detail="Update failed")
@@ -131,6 +145,24 @@ class ExtendSubscription(BaseModel):
 class SetExpiration(BaseModel):
     expiration_date: str
     subscription_type: str = "premium"
+
+class AdminUserCreate(BaseModel):
+    username: str
+    email: str
+    password: str
+    subscription_tier: str = "free"
+    daily_email_limit: int = 100
+    subscription_end: str
+
+class SystemSettings(BaseModel):
+    default_daily_limit: int = 100
+    max_file_size: int = 10
+    smtp_host: str
+    smtp_port: int = 587
+    system_email: str
+    free_tier_templates: bool = False
+    free_tier_scheduling: bool = False
+    free_tier_api: bool = False
 
 # Helper functions
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
@@ -174,6 +206,144 @@ def calculate_days_remaining(expires_at: str) -> int:
         return max(0, days)
     except:
         return 0
+
+# Admin User Management
+
+@app.post("/api/admin/users")
+async def create_admin_user(user: AdminUserCreate, request: Request):
+    """Create a new user (admin only)"""
+    # Verify admin session
+    await verify_admin_session(request)
+    
+    try:
+        # Hash the password
+        hashed_password = hash_password(user.password)
+        
+        # Create user data
+        user_data = {
+            "username": user.username,
+            "email": user.email,
+            "hashed_password": hashed_password,
+            "subscription_tier": user.subscription_tier,
+            "subscription_start": datetime.utcnow().isoformat(),
+            "subscription_end": user.subscription_end,
+            "daily_email_limit": user.daily_email_limit,
+            "is_active": True
+        }
+        
+        # Check if username already exists
+        existing_user = await supabase.select("users", "*", {"username": user.username})
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Username already exists")
+        
+        # Create user in database
+        result = await supabase.insert("users", user_data)
+        
+        # Log user creation
+        await supabase.insert("usage_logs", {
+            "user_id": result[0]["id"],
+            "action": "user_created",
+            "details": f"User created by admin with subscription tier: {user.subscription_tier}"
+        })
+        
+        return {"message": "User created successfully", "user_id": result[0]["id"]}
+    except Exception as e:
+        logger.error(f"Error creating user: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error creating user: {str(e)}")
+
+# Admin Settings Management
+
+@app.get("/api/admin/settings")
+async def get_system_settings(request: Request):
+    """Get system settings"""
+    # Verify admin session
+    await verify_admin_session(request)
+    
+    try:
+        # Get settings from database
+        settings = await supabase.select("system_settings", "*")
+        if not settings:
+            # Return default settings if none exist
+            return {
+                "default_daily_limit": 100,
+                "max_file_size": 10,
+                "smtp_host": "",
+                "smtp_port": 587,
+                "system_email": "",
+                "free_tier_templates": False,
+                "free_tier_scheduling": False,
+                "free_tier_api": False
+            }
+        return settings[0]
+    except Exception as e:
+        logger.error(f"Error getting settings: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error getting settings: {str(e)}")
+
+@app.post("/api/admin/settings")
+async def update_system_settings(settings: SystemSettings, request: Request):
+    """Update system settings"""
+    # Verify admin session
+    await verify_admin_session(request)
+    
+    try:
+        # Check if settings exist
+        existing_settings = await supabase.select("system_settings", "*")
+        
+        settings_data = {
+            "default_daily_limit": settings.default_daily_limit,
+            "max_file_size": settings.max_file_size,
+            "smtp_host": settings.smtp_host,
+            "smtp_port": settings.smtp_port,
+            "system_email": settings.system_email,
+            "free_tier_templates": settings.free_tier_templates,
+            "free_tier_scheduling": settings.free_tier_scheduling,
+            "free_tier_api": settings.free_tier_api,
+            "updated_at": datetime.utcnow().isoformat()
+        }
+        
+        if existing_settings:
+            # Update existing settings
+            await supabase.update("system_settings", settings_data, {"id": existing_settings[0]["id"]})
+        else:
+            # Create new settings
+            await supabase.insert("system_settings", settings_data)
+        
+        return {"message": "Settings updated successfully"}
+    except Exception as e:
+        logger.error(f"Error updating settings: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error updating settings: {str(e)}")
+
+# Admin Campaign Management
+
+@app.post("/api/admin/campaigns")
+async def create_campaign(campaign: Campaign, request: Request):
+    """Create a new email campaign"""
+    # Verify admin session
+    await verify_admin_session(request)
+    
+    try:
+        # Get Supabase client
+        supabase = SupabaseClient()
+        
+        # Create campaign record
+        campaign_data = {
+            "name": campaign.name,
+            "template_type": campaign.template_type,
+            "subject": campaign.subject,
+            "content": campaign.content,
+            "recipients": campaign.recipients,
+            "status": "draft",
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat()
+        }
+        
+        # Insert campaign into database
+        result = await supabase.create_campaign(campaign_data)
+        
+        return {"message": "Campaign created successfully", "campaign_id": result.get("id")}
+    except Exception as e:
+        logger.error(f"Error creating campaign: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error creating campaign: {str(e)}")
 
 # API Routes
 

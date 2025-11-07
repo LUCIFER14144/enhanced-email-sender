@@ -38,6 +38,24 @@ CREATE TABLE IF NOT EXISTS user_settings (
     UNIQUE(user_id)
 );
 
+-- Email campaigns table with enhanced features
+CREATE TABLE IF NOT EXISTS campaigns (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    template_type VARCHAR(50) NOT NULL,
+    subject TEXT NOT NULL,
+    content TEXT NOT NULL,
+    recipients VARCHAR(50) NOT NULL,
+    status VARCHAR(20) DEFAULT 'draft', -- draft, scheduled, sending, completed, failed, paused
+    total_recipients INTEGER DEFAULT 0,
+    sent_count INTEGER DEFAULT 0,
+    success_count INTEGER DEFAULT 0,
+    failure_count INTEGER DEFAULT 0,
+    schedule_time TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Email campaigns tracking with enhanced analytics
 CREATE TABLE IF NOT EXISTS email_campaigns (
     id SERIAL PRIMARY KEY,

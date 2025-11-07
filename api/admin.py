@@ -200,7 +200,78 @@ async def admin_users(request: Request):
                         <a href="/admin/dashboard" class="btn back-btn">Back to Dashboard</a>
                     </div>
                     
-                    <a href="#" class="btn" onclick="alert('Add User functionality coming soon!')">Add New User</a>
+                    <button class="btn" onclick="document.getElementById('addUserModal').style.display='block'">Add New User</button>
+                    
+                    <!-- Add User Modal -->
+                    <div id="addUserModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5);">
+                        <div style="background: white; margin: 10% auto; padding: 20px; width: 50%; border-radius: 8px;">
+                            <h2>Add New User</h2>
+                            <form onsubmit="return submitNewUser(event)">
+                                <div class="form-group">
+                                    <label>Username:</label>
+                                    <input type="text" id="newUsername" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Email:</label>
+                                    <input type="email" id="newEmail" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Password:</label>
+                                    <input type="password" id="newPassword" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Subscription Tier:</label>
+                                    <select id="newSubscriptionTier">
+                                        <option value="free">Free</option>
+                                        <option value="premium">Premium</option>
+                                        <option value="enterprise">Enterprise</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Daily Email Limit:</label>
+                                    <input type="number" id="newDailyLimit" value="100" required>
+                                </div>
+                                <div style="margin-top: 20px;">
+                                    <button type="submit" class="btn">Add User</button>
+                                    <button type="button" class="btn" style="background: #dc3545;" onclick="document.getElementById('addUserModal').style.display='none'">Cancel</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <script>
+                    async function submitNewUser(event) {
+                        event.preventDefault();
+                        const userData = {
+                            username: document.getElementById('newUsername').value,
+                            email: document.getElementById('newEmail').value,
+                            password: document.getElementById('newPassword').value,
+                            subscription_tier: document.getElementById('newSubscriptionTier').value,
+                            daily_email_limit: parseInt(document.getElementById('newDailyLimit').value)
+                        };
+                        
+                        try {
+                            const response = await fetch('/api/admin/users', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify(userData)
+                            });
+                            
+                            if (response.ok) {
+                                alert('User added successfully!');
+                                document.getElementById('addUserModal').style.display = 'none';
+                                location.reload();
+                            } else {
+                                const data = await response.json();
+                                alert(data.detail || 'Error adding user');
+                            }
+                        } catch (error) {
+                            alert('Error adding user: ' + error.message);
+                        }
+                    }
+                    </script>
                     
                     <table>
                         <thead>
@@ -279,7 +350,103 @@ async def admin_campaigns(request: Request):
                         <a href="/admin/dashboard" class="btn back-btn">Back to Dashboard</a>
                     </div>
                     
-                    <a href="#" class="btn" onclick="alert('Create Campaign functionality coming soon!')">Create New Campaign</a>
+                    <button class="btn" onclick="document.getElementById('createCampaignModal').style.display='block'">Create New Campaign</button>
+                    
+                    <!-- Create Campaign Modal -->
+                    <div id="createCampaignModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5);">
+                        <div style="background: white; margin: 10% auto; padding: 20px; width: 60%; border-radius: 8px;">
+                            <h2>Create New Campaign</h2>
+                            <form onsubmit="return submitNewCampaign(event)">
+                                <div class="form-group">
+                                    <label>Campaign Name:</label>
+                                    <input type="text" id="campaignName" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Template:</label>
+                                    <select id="templateType" onchange="updateTemplateFields()">
+                                        <option value="welcome">Welcome Email</option>
+                                        <option value="newsletter">Newsletter</option>
+                                        <option value="custom">Custom Template</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Subject:</label>
+                                    <input type="text" id="emailSubject" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Email Content:</label>
+                                    <textarea id="emailContent" rows="6" style="width: 100%;" required></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label>Recipients List:</label>
+                                    <select id="recipientsList">
+                                        <option value="all">All Users</option>
+                                        <option value="free">Free Users</option>
+                                        <option value="premium">Premium Users</option>
+                                    </select>
+                                </div>
+                                <div style="margin-top: 20px;">
+                                    <button type="submit" class="btn">Create Campaign</button>
+                                    <button type="button" class="btn" style="background: #dc3545;" onclick="document.getElementById('createCampaignModal').style.display='none'">Cancel</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <script>
+                    function updateTemplateFields() {
+                        const templateType = document.getElementById('templateType').value;
+                        const subjectField = document.getElementById('emailSubject');
+                        const contentField = document.getElementById('emailContent');
+                        
+                        switch(templateType) {
+                            case 'welcome':
+                                subjectField.value = 'Welcome to Enhanced Email Sender!';
+                                contentField.value = 'Dear {username},\n\nWelcome to Enhanced Email Sender! We\'re excited to have you on board.';
+                                break;
+                            case 'newsletter':
+                                subjectField.value = 'Your Monthly Newsletter';
+                                contentField.value = 'Hi {username},\n\nHere\'s your monthly update from Enhanced Email Sender.';
+                                break;
+                            case 'custom':
+                                subjectField.value = '';
+                                contentField.value = '';
+                                break;
+                        }
+                    }
+
+                    async function submitNewCampaign(event) {
+                        event.preventDefault();
+                        const campaignData = {
+                            name: document.getElementById('campaignName').value,
+                            template_type: document.getElementById('templateType').value,
+                            subject: document.getElementById('emailSubject').value,
+                            content: document.getElementById('emailContent').value,
+                            recipients: document.getElementById('recipientsList').value
+                        };
+                        
+                        try {
+                            const response = await fetch('/api/admin/campaigns', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify(campaignData)
+                            });
+                            
+                            if (response.ok) {
+                                alert('Campaign created successfully!');
+                                document.getElementById('createCampaignModal').style.display = 'none';
+                                location.reload();
+                            } else {
+                                const data = await response.json();
+                                alert(data.detail || 'Error creating campaign');
+                            }
+                        } catch (error) {
+                            alert('Error creating campaign: ' + error.message);
+                        }
+                    }
+                    </script>
                     
                     <div class="campaigns">
                         <div class="campaign-card">

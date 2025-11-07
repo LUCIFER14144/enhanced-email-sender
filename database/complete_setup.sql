@@ -109,6 +109,21 @@ CREATE TABLE usage_logs (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Create system_settings table
+CREATE TABLE system_settings (
+    id SERIAL PRIMARY KEY,
+    default_daily_limit INTEGER DEFAULT 100,
+    max_file_size INTEGER DEFAULT 10,
+    smtp_host VARCHAR(255),
+    smtp_port INTEGER DEFAULT 587,
+    system_email VARCHAR(255),
+    free_tier_templates BOOLEAN DEFAULT FALSE,
+    free_tier_scheduling BOOLEAN DEFAULT FALSE,
+    free_tier_api BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create all indexes
 CREATE INDEX idx_users_username ON users(username);
 CREATE INDEX idx_users_subscription_end ON users(subscription_end);
