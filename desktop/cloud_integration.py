@@ -417,9 +417,12 @@ def create_cloud_login_window() -> Optional[CloudSync]:
             status_label.config(text="❌ Authentication failed", foreground="red")
     
     def exit_app():
-        """Exit the application"""
+        """Exit the application completely"""
         result["cloud_sync"] = None
         root.quit()
+        root.destroy()
+        import sys
+        sys.exit(0)
     
     # Buttons
     button_frame = ttk.Frame(main_frame)

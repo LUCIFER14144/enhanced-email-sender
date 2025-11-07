@@ -559,15 +559,23 @@ async def login_user(request: Request):
                 status_code=400
             )
         
-        # Demo accounts
+        # Demo accounts (hardcoded for testing)
         demo_accounts = {
             "admin": "admin123",
             "demo": "demo123",
             "testuser": "testpass123"
         }
         
+        # Check if user exists in MOCK_USERS_DB
+        user_found = None
+        for user in MOCK_USERS_DB:
+            if user["username"] == username:
+                user_found = user
+                break
+        
+        # Check demo accounts OR mock database
         if username in demo_accounts and demo_accounts[username] == password:
-            # Calculate days remaining (expires Dec 31, 2025)
+            # Demo account login
             from datetime import datetime
             expire_date = datetime(2025, 12, 31, 23, 59, 59)
             today = datetime.now()
@@ -588,6 +596,38 @@ async def login_user(request: Request):
                 "token": "demo-jwt-token-" + username,
                 "note": "This is a demo response. Connect Supabase for real authentication."
             })
+        elif user_found:
+            # User from admin panel - check password
+            stored_password = user_found.get("password", "")
+            
+            # Check if password matches (in real app, use bcrypt to compare hashed passwords)
+            if stored_password and stored_password == password:
+                from datetime import datetime
+                
+                # Calculate days remaining
+                expire_date = datetime.fromisoformat(user_found["expires_at"].replace('Z', ''))
+                today = datetime.now()
+                days_remaining = max(0, (expire_date - today).days)
+                
+                return JSONResponse({
+                    "success": True,
+                    "message": "Login successful",
+                    "user": {
+                        "id": user_found["id"],
+                        "username": user_found["username"],
+                        "subscription_type": user_found.get("subscription_type", "free"),
+                        "expires_at": user_found["expires_at"],
+                        "days_remaining": days_remaining,
+                        "total_emails_sent": user_found.get("total_emails_sent", 0),
+                        "email": user_found.get("email", f"{username}@example.com")
+                    },
+                    "token": "user-jwt-token-" + username
+                })
+            else:
+                return JSONResponse(
+                    {"success": False, "message": "Invalid credentials"},
+                    status_code=401
+                )
         else:
             return JSONResponse(
                 {"success": False, "message": "Invalid credentials"},
@@ -863,6 +903,7 @@ async def admin_add_user(request: Request):
         new_user = {
             "id": max(u["id"] for u in MOCK_USERS_DB) + 1,
             "username": username,
+            "password": password,  # Store password (in production, hash this!)
             "email": email,
             "subscription_type": subscription_type,
             "expires_at": "2025-12-31T23:59:59" if subscription_type == "free" else "2026-12-31T23:59:59",
