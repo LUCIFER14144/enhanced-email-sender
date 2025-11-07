@@ -123,9 +123,370 @@ async def admin_dashboard(request: Request):
                         </div>
                     </div>
                 </div>
-                
-                <!-- Add modals here -->
-                <!-- Your existing modals code will be here -->
+
+                <!-- Add User Modal -->
+                <div id="addUserModal" style="display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.4);">
+                    <div style="background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 50%; border-radius: 5px;">
+                        <h3>Add New User</h3>
+                        <form id="addUserForm" onsubmit="return createUser(event)">
+                            <div style="margin-bottom: 15px;">
+                                <label>Username:</label><br>
+                                <input type="text" id="username" required style="width: 100%; padding: 8px;">
+                            </div>
+                            <div style="margin-bottom: 15px;">
+                                <label>Email:</label><br>
+                                <input type="email" id="email" required style="width: 100%; padding: 8px;">
+                            </div>
+                            <div style="margin-bottom: 15px;">
+                                <label>Password:</label><br>
+                                <input type="password" id="password" required style="width: 100%; padding: 8px;">
+                            </div>
+                            <div style="margin-bottom: 15px;">
+                                <label>Subscription Tier:</label><br>
+                                <select id="subscription_tier" style="width: 100%; padding: 8px;">
+                                    <option value="free">Free</option>
+                                    <option value="premium">Premium</option>
+                                    <option value="enterprise">Enterprise</option>
+                                </select>
+                            </div>
+                            <div style="margin-bottom: 15px;">
+                                <label>Daily Email Limit:</label><br>
+                                <input type="number" id="daily_limit" value="100" min="0" style="width: 100%; padding: 8px;">
+                            </div>
+                            <div style="margin-bottom: 15px;">
+                                <label>Subscription End Date:</label><br>
+                                <input type="date" id="subscription_end" required style="width: 100%; padding: 8px;">
+                            </div>
+                            <button type="submit" class="btn">Create User</button>
+                            <button type="button" class="btn" style="background: #dc3545;" onclick="closeModal('addUserModal')">Cancel</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Create Campaign Modal -->
+                <div id="createCampaignModal" style="display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.4);">
+                    <div style="background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 50%; border-radius: 5px;">
+                        <h3>Create New Campaign</h3>
+                        <form id="createCampaignForm" onsubmit="return createCampaign(event)">
+                            <div style="margin-bottom: 15px;">
+                                <label>Campaign Name:</label><br>
+                                <input type="text" id="campaign_name" required style="width: 100%; padding: 8px;">
+                            </div>
+                            <div style="margin-bottom: 15px;">
+                                <label>Template Type:</label><br>
+                                <select id="template_type" onchange="updateTemplate()" style="width: 100%; padding: 8px;">
+                                    <option value="welcome">Welcome Email</option>
+                                    <option value="newsletter">Newsletter</option>
+                                    <option value="custom">Custom Template</option>
+                                </select>
+                            </div>
+                            <div style="margin-bottom: 15px;">
+                                <label>Subject:</label><br>
+                                <input type="text" id="email_subject" required style="width: 100%; padding: 8px;">
+                            </div>
+                            <div style="margin-bottom: 15px;">
+                                <label>Content:</label><br>
+                                <textarea id="email_content" required style="width: 100%; height: 150px; padding: 8px;"></textarea>
+                            </div>
+                            <div style="margin-bottom: 15px;">
+                                <label>Recipients:</label><br>
+                                <select id="recipients" style="width: 100%; padding: 8px;">
+                                    <option value="all">All Users</option>
+                                    <option value="free">Free Users</option>
+                                    <option value="premium">Premium Users</option>
+                                    <option value="enterprise">Enterprise Users</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn">Create Campaign</button>
+                            <button type="button" class="btn" style="background: #dc3545;" onclick="closeModal('createCampaignModal')">Cancel</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- System Settings Modal -->
+                <div id="systemSettingsModal" style="display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.4);">
+                    <div style="background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 50%; border-radius: 5px;">
+                        <h3>System Settings</h3>
+                        <form id="systemSettingsForm" onsubmit="return updateSettings(event)">
+                            <div style="margin-bottom: 15px;">
+                                <label>Default Daily Email Limit:</label><br>
+                                <input type="number" id="default_daily_limit" value="100" min="0" style="width: 100%; padding: 8px;">
+                            </div>
+                            <div style="margin-bottom: 15px;">
+                                <label>Max File Size (MB):</label><br>
+                                <input type="number" id="max_file_size" value="10" min="1" style="width: 100%; padding: 8px;">
+                            </div>
+                            <div style="margin-bottom: 15px;">
+                                <label>SMTP Host:</label><br>
+                                <input type="text" id="smtp_host" required style="width: 100%; padding: 8px;">
+                            </div>
+                            <div style="margin-bottom: 15px;">
+                                <label>SMTP Port:</label><br>
+                                <input type="number" id="smtp_port" value="587" style="width: 100%; padding: 8px;">
+                            </div>
+                            <div style="margin-bottom: 15px;">
+                                <label>System Email:</label><br>
+                                <input type="email" id="system_email" required style="width: 100%; padding: 8px;">
+                            </div>
+                            <div style="margin-bottom: 15px;">
+                                <label>Free Tier Features:</label><br>
+                                <label style="display: block; margin: 5px 0;">
+                                    <input type="checkbox" id="free_tier_templates"> Enable Custom Templates
+                                </label>
+                                <label style="display: block; margin: 5px 0;">
+                                    <input type="checkbox" id="free_tier_scheduling"> Enable Email Scheduling
+                                </label>
+                                <label style="display: block; margin: 5px 0;">
+                                    <input type="checkbox" id="free_tier_api"> Enable API Access
+                                </label>
+                            </div>
+                            <button type="submit" class="btn">Save Settings</button>
+                            <button type="button" class="btn" style="background: #dc3545;" onclick="closeModal('systemSettingsModal')">Cancel</button>
+                        </form>
+                    </div>
+                </div>
+
+                <script>
+                // Helper function to close modals
+                function closeModal(modalId) {
+                    document.getElementById(modalId).style.display = 'none';
+                }
+
+                // Set default subscription end date for new users
+                document.addEventListener('DOMContentLoaded', function() {
+                    const today = new Date();
+                    const nextYear = new Date(today.setFullYear(today.getFullYear() + 1));
+                    document.getElementById('subscription_end').valueAsDate = nextYear;
+
+                    // Load initial data
+                    loadUsers();
+                    loadCampaigns();
+                    loadSystemSettings();
+                });
+
+                // User Management Functions
+                async function createUser(event) {
+                    event.preventDefault();
+                    const userData = {
+                        username: document.getElementById('username').value,
+                        email: document.getElementById('email').value,
+                        password: document.getElementById('password').value,
+                        subscription_tier: document.getElementById('subscription_tier').value,
+                        daily_email_limit: parseInt(document.getElementById('daily_limit').value),
+                        subscription_end: document.getElementById('subscription_end').value + 'T23:59:59Z'
+                    };
+
+                    try {
+                        const response = await fetch('/api/admin/users', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(userData)
+                        });
+
+                        if (response.ok) {
+                            alert('User created successfully!');
+                            closeModal('addUserModal');
+                            loadUsers();
+                        } else {
+                            const error = await response.json();
+                            alert(error.detail || 'Failed to create user');
+                        }
+                    } catch (error) {
+                        alert('Error creating user: ' + error.message);
+                    }
+                }
+
+                // Campaign Management Functions
+                function updateTemplate() {
+                    const templateType = document.getElementById('template_type').value;
+                    const subjectField = document.getElementById('email_subject');
+                    const contentField = document.getElementById('email_content');
+                    
+                    switch(templateType) {
+                        case 'welcome':
+                            subjectField.value = 'Welcome to Our Service';
+                            contentField.value = 'Dear {name},\n\nWelcome to our service! We\'re excited to have you on board.';
+                            break;
+                        case 'newsletter':
+                            subjectField.value = 'Monthly Newsletter';
+                            contentField.value = 'Hi {name},\n\nHere\'s your monthly update...';
+                            break;
+                        case 'custom':
+                            subjectField.value = '';
+                            contentField.value = '';
+                            break;
+                    }
+                }
+
+                async function createCampaign(event) {
+                    event.preventDefault();
+                    const campaignData = {
+                        name: document.getElementById('campaign_name').value,
+                        template_type: document.getElementById('template_type').value,
+                        subject: document.getElementById('email_subject').value,
+                        content: document.getElementById('email_content').value,
+                        recipients: document.getElementById('recipients').value
+                    };
+
+                    try {
+                        const response = await fetch('/api/admin/campaigns', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(campaignData)
+                        });
+
+                        if (response.ok) {
+                            alert('Campaign created successfully!');
+                            closeModal('createCampaignModal');
+                            loadCampaigns();
+                        } else {
+                            const error = await response.json();
+                            alert(error.detail || 'Failed to create campaign');
+                        }
+                    } catch (error) {
+                        alert('Error creating campaign: ' + error.message);
+                    }
+                }
+
+                // System Settings Functions
+                async function loadSystemSettings() {
+                    try {
+                        const response = await fetch('/api/admin/settings');
+                        if (response.ok) {
+                            const settings = await response.json();
+                            document.getElementById('default_daily_limit').value = settings.default_daily_limit || 100;
+                            document.getElementById('max_file_size').value = settings.max_file_size || 10;
+                            document.getElementById('smtp_host').value = settings.smtp_host || '';
+                            document.getElementById('smtp_port').value = settings.smtp_port || 587;
+                            document.getElementById('system_email').value = settings.system_email || '';
+                            document.getElementById('free_tier_templates').checked = settings.free_tier_templates || false;
+                            document.getElementById('free_tier_scheduling').checked = settings.free_tier_scheduling || false;
+                            document.getElementById('free_tier_api').checked = settings.free_tier_api || false;
+                        }
+                    } catch (error) {
+                        console.error('Error loading settings:', error);
+                    }
+                }
+
+                async function updateSettings(event) {
+                    event.preventDefault();
+                    const settingsData = {
+                        default_daily_limit: parseInt(document.getElementById('default_daily_limit').value),
+                        max_file_size: parseInt(document.getElementById('max_file_size').value),
+                        smtp_host: document.getElementById('smtp_host').value,
+                        smtp_port: parseInt(document.getElementById('smtp_port').value),
+                        system_email: document.getElementById('system_email').value,
+                        free_tier_templates: document.getElementById('free_tier_templates').checked,
+                        free_tier_scheduling: document.getElementById('free_tier_scheduling').checked,
+                        free_tier_api: document.getElementById('free_tier_api').checked
+                    };
+
+                    try {
+                        const response = await fetch('/api/admin/settings', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(settingsData)
+                        });
+
+                        if (response.ok) {
+                            alert('Settings updated successfully!');
+                            closeModal('systemSettingsModal');
+                        } else {
+                            const error = await response.json();
+                            alert(error.detail || 'Failed to update settings');
+                        }
+                    } catch (error) {
+                        alert('Error updating settings: ' + error.message);
+                    }
+                }
+
+                // Data Loading Functions
+                async function loadUsers() {
+                    try {
+                        const response = await fetch('/api/admin/users');
+                        if (response.ok) {
+                            const users = await response.json();
+                            const tableHtml = generateUsersTable(users);
+                            document.querySelector('.users-table').innerHTML = tableHtml;
+                        }
+                    } catch (error) {
+                        console.error('Error loading users:', error);
+                    }
+                }
+
+                async function loadCampaigns() {
+                    try {
+                        const response = await fetch('/api/admin/campaigns');
+                        if (response.ok) {
+                            const campaigns = await response.json();
+                            const tableHtml = generateCampaignsTable(campaigns);
+                            document.querySelector('.campaigns').innerHTML = tableHtml;
+                        }
+                    } catch (error) {
+                        console.error('Error loading campaigns:', error);
+                    }
+                }
+
+                function generateUsersTable(users) {
+                    return `
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                            <thead>
+                                <tr style="background-color: #f8f9fa;">
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Username</th>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Email</th>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Subscription</th>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Status</th>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${users.map(user => `
+                                    <tr>
+                                        <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">${user.username}</td>
+                                        <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">${user.email}</td>
+                                        <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">${user.subscription_tier}</td>
+                                        <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">${user.is_active ? 'Active' : 'Inactive'}</td>
+                                        <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">
+                                            <button onclick="editUser(${user.id})" class="btn" style="padding: 5px 10px; margin-right: 5px;">Edit</button>
+                                            <button onclick="deleteUser(${user.id})" class="btn" style="padding: 5px 10px; background: #dc3545;">Delete</button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                }
+
+                function generateCampaignsTable(campaigns) {
+                    return `
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                            <thead>
+                                <tr style="background-color: #f8f9fa;">
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Name</th>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Type</th>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Status</th>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Recipients</th>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${campaigns.map(campaign => `
+                                    <tr>
+                                        <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">${campaign.name}</td>
+                                        <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">${campaign.template_type}</td>
+                                        <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">${campaign.status}</td>
+                                        <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">${campaign.recipients}</td>
+                                        <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">
+                                            <button onclick="editCampaign(${campaign.id})" class="btn" style="padding: 5px 10px; margin-right: 5px;">Edit</button>
+                                            <button onclick="deleteCampaign(${campaign.id})" class="btn" style="padding: 5px 10px; background: #dc3545;">Delete</button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                }
+                </script>
             </body>
         </html>
         """)
@@ -133,6 +494,40 @@ async def admin_dashboard(request: Request):
         return RedirectResponse(url="/admin/login")
 
 # User Management Routes
+@app.get("/api/admin/users")
+async def list_users(request: Request):
+    """List all users"""
+    token = request.cookies.get("admin_token")
+    if not token:
+        raise HTTPException(status_code=401, detail="Admin authentication required")
+    
+    try:
+        jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+        from main import supabase
+        users = await supabase.select("users", "*")
+        return users
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Invalid admin token")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/admin/campaigns")
+async def list_campaigns(request: Request):
+    """List all campaigns"""
+    token = request.cookies.get("admin_token")
+    if not token:
+        raise HTTPException(status_code=401, detail="Admin authentication required")
+    
+    try:
+        jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+        from main import supabase
+        campaigns = await supabase.select("campaigns", "*")
+        return campaigns or []
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Invalid admin token")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/api/admin/users")
 async def create_user(user: AdminUser, request: Request):
     """Create a new user"""
