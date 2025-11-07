@@ -17,6 +17,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Pydantic Models
+from pydantic import BaseModel
+from typing import Optional
+
+class AdminUser(BaseModel):
+    username: str
+    email: str
+    password: str
+    subscription_tier: str = "free"
+    daily_email_limit: int = 100
+    subscription_end: str
+
 # Error Handler
 @app.exception_handler(404)
 async def not_found_handler(request: Request, exc: HTTPException):
@@ -31,6 +43,59 @@ async def not_found_handler(request: Request, exc: HTTPException):
 JWT_SECRET = os.getenv("JWT_SECRET", "your-super-secret-jwt-key-change-in-production")
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+
+# User Management Routes
+@app.post("/api/admin/users")
+async def create_user(user: AdminUser, request: Request):
+    """Create a new user"""
+    # Verify admin session
+    token = request.cookies.get("admin_token")
+    if not token:
+        raise HTTPException(status_code=401, detail="Admin authentication required")
+    
+    try:
+        # Verify token
+        payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+        if payload.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Admin access required")
+
+        # Hash the password
+        import bcrypt
+        hashed_password = bcrypt.hashpw(user.password.encode(), bcrypt.gensalt()).decode()
+        
+        # Create user data
+        user_data = {
+            "username": user.username,
+            "email": user.email,
+            "hashed_password": hashed_password,
+            "subscription_tier": user.subscription_tier,
+            "subscription_start": datetime.utcnow().isoformat(),
+            "subscription_end": user.subscription_end,
+            "daily_email_limit": user.daily_email_limit,
+            "is_active": True
+        }
+
+        # Insert into database using Supabase
+        from main import supabase
+        existing_user = await supabase.select("users", "*", {"username": user.username})
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Username already exists")
+        
+        result = await supabase.insert("users", user_data)
+        
+        # Log user creation
+        await supabase.insert("usage_logs", {
+            "user_id": result[0]["id"],
+            "action": "user_created",
+            "details": f"User created by admin with subscription tier: {user.subscription_tier}"
+        })
+        
+        return {"message": "User created successfully", "user_id": result[0]["id"]}
+        
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Invalid admin token")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/admin/login", response_class=HTMLResponse)
 async def admin_login_page(request: Request):

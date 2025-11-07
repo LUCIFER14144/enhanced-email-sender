@@ -2,7 +2,8 @@
   "version": 2,
   "builds": [
     { "src": "api/*.py", "use": "@vercel/python" },
-    { "src": "admin/static/**", "use": "@vercel/static" }
+    { "src": "admin/static/**", "use": "@vercel/static" },
+    { "src": "admin/templates/**", "use": "@vercel/static" }
   ],
   "routes": [
     {
@@ -27,6 +28,16 @@
         "content-type": "application/octet-stream",
         "content-disposition": "attachment; filename=Enhanced-Email-Sender.exe"
       }
+    },
+    {
+      "src": "/api/admin/users",
+      "methods": ["POST", "GET", "PUT", "DELETE"],
+      "dest": "/api/admin.py"
+    },
+    {
+      "src": "/api/admin/settings",
+      "methods": ["POST", "GET"],
+      "dest": "/api/admin.py"
     },
     {
       "src": "/admin/(login|dashboard|logout|users|campaigns|settings)",
