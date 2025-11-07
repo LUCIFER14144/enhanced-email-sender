@@ -1014,11 +1014,22 @@ async def admin_add_user(
     password: str = Form(),
     email: str = Form(""),
     subscription_type: str = Form("free"),
-    expiration_days: int = Form(30),
-    admin: bool = Depends(verify_admin_session)
+    expiration_days: int = Form(30)
 ):
     """Add new user (admin only)"""
     try:
+        # Verify admin session manually to avoid dependency issues
+        token = request.cookies.get("admin_token")
+        if not token:
+            return RedirectResponse(url="/admin?error=Not authenticated", status_code=302)
+        
+        try:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+            if payload.get("role") != "admin":
+                return RedirectResponse(url="/admin?error=Not authorized", status_code=302)
+        except:
+            return RedirectResponse(url="/admin?error=Invalid session", status_code=302)
+        
         # Check if user exists
         existing = await supabase.select("users", filters={"username": username})
         if existing:
@@ -1033,7 +1044,7 @@ async def admin_add_user(
         user_data = {
             "username": username,
             "hashed_password": hash_password(password),
-            "email": email,
+            "email": email or None,
             "subscription_type": subscription_type,
             "expires_at": expires_at,
             "is_active": True,
@@ -1058,17 +1069,31 @@ async def admin_add_user(
 @app.post("/admin/users/{user_id}/extend")
 async def admin_extend_subscription(
     user_id: int, 
-    extend_data: ExtendSubscription,
-    admin: bool = Depends(verify_admin_session)
+    request: Request
 ):
     """Extend user subscription"""
     try:
+        # Verify admin
+        token = request.cookies.get("admin_token")
+        if not token:
+            return JSONResponse({"success": False, "detail": "Not authenticated"}, status_code=401)
+        try:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+            if payload.get("role") != "admin":
+                return JSONResponse({"success": False, "detail": "Not authorized"}, status_code=403)
+        except:
+            return JSONResponse({"success": False, "detail": "Invalid session"}, status_code=401)
+        
+        # Get request body
+        body = await request.json()
+        days = body.get("days", 30)
+        
         users = await supabase.select("users", filters={"id": user_id})
         if not users:
-            raise HTTPException(status_code=404, detail="User not found")
+            return JSONResponse({"success": False, "detail": "User not found"}, status_code=404)
         
-        current_expiry = datetime.fromisoformat(users[0]["expires_at"])
-        new_expiry = current_expiry + timedelta(days=extend_data.days)
+        current_expiry = datetime.fromisoformat(users[0]["expires_at"].replace('Z', '+00:00'))
+        new_expiry = current_expiry + timedelta(days=days)
         
         await supabase.update("users", 
                             {"expires_at": new_expiry.isoformat()}, 
@@ -1076,47 +1101,73 @@ async def admin_extend_subscription(
         
         return {
             "success": True,
-            "message": f"Subscription extended by {extend_data.days} days",
+            "message": f"Subscription extended by {days} days",
             "new_expiry": new_expiry.strftime("%Y-%m-%d")
         }
         
     except Exception as e:
         logger.error(f"Extend subscription error: {e}")
-        raise HTTPException(status_code=500, detail="Failed to extend subscription")
+        return JSONResponse({"success": False, "detail": str(e)}, status_code=500)
 
 @app.post("/admin/users/{user_id}/set-expiration")
 async def admin_set_expiration(
     user_id: int,
-    expiration_data: SetExpiration,
-    admin: bool = Depends(verify_admin_session)
+    request: Request
 ):
     """Set user expiration date"""
     try:
-        expires_at = datetime.strptime(expiration_data.expiration_date, "%Y-%m-%d").isoformat()
+        # Verify admin
+        token = request.cookies.get("admin_token")
+        if not token:
+            return JSONResponse({"success": False, "detail": "Not authenticated"}, status_code=401)
+        try:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+            if payload.get("role") != "admin":
+                return JSONResponse({"success": False, "detail": "Not authorized"}, status_code=403)
+        except:
+            return JSONResponse({"success": False, "detail": "Invalid session"}, status_code=401)
+        
+        # Get request body
+        body = await request.json()
+        expiration_date = body.get("expiration_date")
+        subscription_type = body.get("subscription_type", "premium")
+        
+        expires_at = datetime.strptime(expiration_date, "%Y-%m-%d").isoformat()
         
         await supabase.update("users", {
             "expires_at": expires_at,
-            "subscription_type": expiration_data.subscription_type,
+            "subscription_type": subscription_type,
             "is_active": True
         }, {"id": user_id})
         
         return {
             "success": True,
-            "message": f"Expiration set to {expiration_data.expiration_date}",
-            "subscription_type": expiration_data.subscription_type
+            "message": f"Expiration set to {expiration_date}",
+            "subscription_type": subscription_type
         }
         
     except Exception as e:
         logger.error(f"Set expiration error: {e}")
-        raise HTTPException(status_code=500, detail="Failed to set expiration")
+        return JSONResponse({"success": False, "detail": str(e)}, status_code=500)
 
 @app.delete("/admin/users/{user_id}")
 async def admin_delete_user(
-    user_id: int, 
-    admin: bool = Depends(verify_admin_session)
+    user_id: int,
+    request: Request
 ):
     """Delete user and all their data"""
     try:
+        # Verify admin
+        token = request.cookies.get("admin_token")
+        if not token:
+            return JSONResponse({"success": False, "detail": "Not authenticated"}, status_code=401)
+        try:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+            if payload.get("role") != "admin":
+                return JSONResponse({"success": False, "detail": "Not authorized"}, status_code=403)
+        except:
+            return JSONResponse({"success": False, "detail": "Invalid session"}, status_code=401)
+        
         # Delete user's recipient lists
         await supabase.delete("recipient_lists", {"user_id": user_id})
         
@@ -1133,7 +1184,7 @@ async def admin_delete_user(
         
     except Exception as e:
         logger.error(f"Delete user error: {e}")
-        raise HTTPException(status_code=500, detail="Failed to delete user")
+        return JSONResponse({"success": False, "detail": str(e)}, status_code=500)
 
 @app.get("/admin/users/{user_id}/data", response_class=HTMLResponse)
 async def admin_view_user_data(
