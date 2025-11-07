@@ -320,6 +320,12 @@ def create_cloud_login_window() -> Optional[CloudSync]:
     except Exception:
         pass
     
+    # Configure LabelFrame styling to remove bold border
+    style.configure('Login.TLabelframe', borderwidth=1, relief='solid')
+    style.configure('Login.TLabelframe.Label', font=('Segoe UI', 10, 'bold'))
+    style.configure('Info.TLabelframe', borderwidth=1, relief='solid')
+    style.configure('Info.TLabelframe.Label', font=('Segoe UI', 10, 'bold'))
+    
     # Colors
     bg_card = "#FFF6EE"
     bg_window = "#FDF7F0"
@@ -343,7 +349,7 @@ def create_cloud_login_window() -> Optional[CloudSync]:
     subtitle_label.pack(pady=(0, 20))
     
     # Login form
-    form_frame = ttk.LabelFrame(main_frame, text="Sign In", padding="20")
+    form_frame = ttk.LabelFrame(main_frame, text="Sign In", padding="20", style='Login.TLabelframe')
     form_frame.pack(fill=tk.X, pady=(0, 20))
     
     # Username input
@@ -426,7 +432,7 @@ def create_cloud_login_window() -> Optional[CloudSync]:
     exit_btn.pack(side=tk.RIGHT)
     
     # Info section
-    info_frame = ttk.LabelFrame(main_frame, text="ℹ️ Information", padding="15")
+    info_frame = ttk.LabelFrame(main_frame, text="ℹ️ Information", padding="15", style='Info.TLabelframe')
     info_frame.pack(fill=tk.X, pady=(20, 0))
     
     info_text = """

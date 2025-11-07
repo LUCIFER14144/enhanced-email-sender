@@ -567,6 +567,12 @@ async def login_user(request: Request):
         }
         
         if username in demo_accounts and demo_accounts[username] == password:
+            # Calculate days remaining (expires Dec 31, 2025)
+            from datetime import datetime
+            expire_date = datetime(2025, 12, 31, 23, 59, 59)
+            today = datetime.now()
+            days_remaining = (expire_date - today).days
+            
             return JSONResponse({
                 "success": True,
                 "message": "Login successful",
@@ -574,7 +580,10 @@ async def login_user(request: Request):
                     "id": 1,
                     "username": username,
                     "subscription_type": "premium" if username == "admin" else "free",
-                    "expires_at": "2025-12-31T23:59:59"
+                    "expires_at": "2025-12-31T23:59:59",
+                    "days_remaining": days_remaining,
+                    "total_emails_sent": 0,
+                    "email": f"{username}@example.com"
                 },
                 "token": "demo-jwt-token-" + username,
                 "note": "This is a demo response. Connect Supabase for real authentication."
