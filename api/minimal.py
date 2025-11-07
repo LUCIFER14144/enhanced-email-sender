@@ -972,7 +972,7 @@ async def admin_dashboard_page(request: Request, session: str = Cookie(None)):
     """Admin dashboard page with navigation to user management"""
     # Check authentication
     if not verify_admin_session(session):
-        return RedirectResponse(url="/admin/login", status_code=303)
+        return RedirectResponse(url="/admin", status_code=303)
     
     return HTMLResponse(f"""
     <!DOCTYPE html>

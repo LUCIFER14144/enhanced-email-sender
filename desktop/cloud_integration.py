@@ -468,7 +468,11 @@ def create_cloud_login_window() -> Optional[CloudSync]:
     
     # Start the GUI
     root.mainloop()
-    root.destroy()
+    
+    try:
+        root.destroy()
+    except:
+        pass  # Window may already be destroyed
     
     return result["cloud_sync"]
 
