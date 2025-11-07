@@ -27,7 +27,8 @@
       "dest": "/desktop/dist/Enhanced-Email-Sender.exe",
       "headers": {
         "content-type": "application/octet-stream",
-        "content-disposition": "attachment; filename=Enhanced-Email-Sender.exe"
+        "content-disposition": "attachment; filename=Enhanced-Email-Sender.exe",
+        "cache-control": "no-store"
       }
     },
     {
