@@ -7,7 +7,7 @@ for user authentication, data synchronization, and subscription management.
 """
 
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, simpledialog
 import sys
 import os
 from datetime import datetime
@@ -32,8 +32,217 @@ class EnhancedEmailSenderApp:
     def __init__(self, root):
         self.root = root
         self.cloud_sync = None
+        self.user_data = None
         self.setup_window()
-        self.create_widgets()
+        
+        # Start with cloud login
+        self.show_cloud_login()
+        
+    def show_cloud_login(self):
+        """Show cloud login dialog first"""
+        self.root.withdraw()  # Hide main window initially
+        
+        # Create login window
+        login_window = tk.Toplevel()
+        login_window.title("🔐 Enhanced Email Sender - Cloud Login")
+        login_window.geometry("400x500")
+        login_window.resizable(False, False)
+        
+        # Center login window
+        login_window.update_idletasks()
+        x = (login_window.winfo_screenwidth() // 2) - (login_window.winfo_width() // 2)
+        y = (login_window.winfo_screenheight() // 2) - (login_window.winfo_height() // 2)
+        login_window.geometry(f"+{x}+{y}")
+        
+        # Make it modal
+        login_window.transient(self.root)
+        login_window.grab_set()
+        
+        # Login form
+        main_frame = ttk.Frame(login_window, padding="30")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Header
+        header_label = ttk.Label(main_frame, text="☁️ Cloud Authentication", 
+                               font=("Arial", 16, "bold"))
+        header_label.pack(pady=(0, 10))
+        
+        subtitle_label = ttk.Label(main_frame, 
+                                 text="Connect to your cloud account to access\nyour email data from anywhere", 
+                                 font=("Arial", 10))
+        subtitle_label.pack(pady=(0, 20))
+        
+        # API URL (optional customization)
+        ttk.Label(main_frame, text="API Server:").pack(anchor=tk.W)
+        self.api_url_var = tk.StringVar(value="https://perfected-vercelblasting.vercel.app")
+        api_entry = ttk.Entry(main_frame, textvariable=self.api_url_var, width=50)
+        api_entry.pack(fill=tk.X, pady=(0, 15))
+        
+        # Username
+        ttk.Label(main_frame, text="Username:").pack(anchor=tk.W)
+        self.username_var = tk.StringVar()
+        username_entry = ttk.Entry(main_frame, textvariable=self.username_var, width=50)
+        username_entry.pack(fill=tk.X, pady=(0, 15))
+        username_entry.focus()
+        
+        # Password
+        ttk.Label(main_frame, text="Password:").pack(anchor=tk.W)
+        self.password_var = tk.StringVar()
+        password_entry = ttk.Entry(main_frame, textvariable=self.password_var, show="*", width=50)
+        password_entry.pack(fill=tk.X, pady=(0, 20))
+        
+        # Buttons frame
+        buttons_frame = ttk.Frame(main_frame)
+        buttons_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        # Login button
+        login_btn = ttk.Button(buttons_frame, text="🔐 Login", 
+                              command=lambda: self.handle_login(login_window))
+        login_btn.pack(side=tk.LEFT, padx=(0, 10))
+        
+        # Register button
+        register_btn = ttk.Button(buttons_frame, text="📝 Register", 
+                                 command=lambda: self.handle_register(login_window))
+        register_btn.pack(side=tk.LEFT)
+        
+        # Demo accounts info
+        demo_frame = ttk.LabelFrame(main_frame, text="Demo Accounts", padding="10")
+        demo_frame.pack(fill=tk.X, pady=(20, 0))
+        
+        demo_text = """Try these demo accounts:
+• Username: demo | Password: demo123
+• Username: testuser | Password: testpass123
+        
+Or register a new account above."""
+        
+        ttk.Label(demo_frame, text=demo_text, font=("Arial", 9)).pack()
+        
+        # Status label
+        self.status_var = tk.StringVar(value="Ready to connect...")
+        status_label = ttk.Label(main_frame, textvariable=self.status_var, 
+                                font=("Arial", 9), foreground="blue")
+        status_label.pack(pady=(15, 0))
+        
+        # Handle Enter key
+        password_entry.bind('<Return>', lambda e: self.handle_login(login_window))
+        
+        # Handle window close
+        login_window.protocol("WM_DELETE_WINDOW", self.on_login_close)
+        
+    def handle_login(self, login_window):
+        """Handle login attempt"""
+        username = self.username_var.get().strip()
+        password = self.password_var.get().strip()
+        api_url = self.api_url_var.get().strip()
+        
+        if not username or not password:
+            messagebox.showerror("Error", "Please enter both username and password")
+            return
+            
+        self.status_var.set("Connecting to cloud...")
+        login_window.update()
+        
+        # Initialize cloud sync
+        try:
+            self.cloud_sync = CloudSync(api_url)
+            
+            # Test connection first
+            if not self.cloud_sync.test_connection():
+                self.status_var.set("❌ Cannot connect to server")
+                messagebox.showerror("Connection Error", 
+                                   f"Cannot connect to server at:\n{api_url}\n\nPlease check your internet connection.")
+                return
+            
+            # Attempt login
+            result = self.cloud_sync.login(username, password)
+            
+            if result["success"]:
+                self.user_data = result
+                self.status_var.set("✅ Login successful!")
+                login_window.update()
+                
+                # Show main app
+                messagebox.showinfo("Success", 
+                                  f"Welcome back, {username}!\n\nSubscription: {result.get('user', {}).get('subscription_type', 'N/A')}\nExpires: {result.get('user', {}).get('expires_at', 'N/A')}")
+                
+                login_window.destroy()
+                self.root.deiconify()  # Show main window
+                self.create_widgets()  # Create main interface
+                self.load_user_data()  # Load user's cloud data
+                
+            else:
+                self.status_var.set("❌ Login failed")
+                messagebox.showerror("Login Failed", result.get("message", "Invalid credentials"))
+                
+        except Exception as e:
+            self.status_var.set("❌ Connection error")
+            messagebox.showerror("Error", f"Connection failed:\n{str(e)}")
+            
+    def handle_register(self, login_window):
+        """Handle registration"""
+        username = self.username_var.get().strip()
+        password = self.password_var.get().strip()
+        api_url = self.api_url_var.get().strip()
+        
+        if not username or not password:
+            messagebox.showerror("Error", "Please enter both username and password")
+            return
+            
+        # Simple email prompt
+        email = tk.simpledialog.askstring("Email", "Enter your email address (optional):", 
+                                         parent=login_window)
+        
+        self.status_var.set("Creating account...")
+        login_window.update()
+        
+        try:
+            if not self.cloud_sync:
+                self.cloud_sync = CloudSync(api_url)
+            
+            result = self.cloud_sync.register_user(username, password, email or "", "free")
+            
+            if result.get("success"):
+                self.status_var.set("✅ Registration successful!")
+                messagebox.showinfo("Success", 
+                                  f"Account created successfully!\n\nUsername: {username}\nSubscription: Free (30 days)\n\nYou can now login.")
+                # Clear password for security
+                self.password_var.set("")
+                
+            else:
+                self.status_var.set("❌ Registration failed")
+                messagebox.showerror("Registration Failed", result.get("message", "Registration failed"))
+                
+        except Exception as e:
+            self.status_var.set("❌ Registration error")
+            messagebox.showerror("Error", f"Registration failed:\n{str(e)}")
+            
+    def load_user_data(self):
+        """Load user's cloud data after successful login"""
+        if not self.cloud_sync:
+            return
+            
+        try:
+            # Load recipients from cloud
+            result = self.cloud_sync.load_recipients()
+            if result["success"] and result["recipients"]:
+                # Populate recipients list
+                for recipient in result["recipients"]:
+                    # Add to UI (implement based on your recipient UI)
+                    pass
+                    
+            # Check subscription status
+            sub_result = self.cloud_sync.validate_subscription()
+            if sub_result["success"]:
+                if not sub_result["valid"]:
+                    messagebox.showwarning("Subscription Expired", 
+                                         f"Your subscription expired on {sub_result.get('expires_at', 'Unknown')}\n\nPlease contact admin to extend your subscription.")
+                    
+        except Exception as e:
+            logger.error(f"Error loading user data: {e}")
+            
+    def on_login_close(self):
+        """Handle login window close"""
+        self.root.quit()
         
     def setup_window(self):
         """Configure main window"""

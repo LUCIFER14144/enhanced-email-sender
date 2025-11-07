@@ -25,7 +25,7 @@ class CloudSync:
     """Handle cloud synchronization and authentication"""
     
     def __init__(self, api_base_url: str = None):
-        self.api_base_url = api_base_url or "https://your-vercel-app.vercel.app"
+        self.api_base_url = api_base_url or "https://perfected-vercelblasting.vercel.app"
         self.token = None
         self.user_data = None
         self.expiration_check_interval = 300  # Check every 5 minutes
