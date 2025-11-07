@@ -33,6 +33,49 @@ class CloudSync:
         self.expiration_check_interval = 300  # Check every 5 minutes
         self.last_sync = None
         self._load_cached_credentials()
+
+    # Compatibility layer for older main.py references
+    def test_connection(self) -> bool:
+        """Simple connectivity check used by older UI code.
+        Performs a GET to the root endpoint expecting JSON with 'status'.
+        Returns True if reachable, False otherwise.
+        """
+        try:
+            resp = requests.get(f"{self.api_base_url}/", timeout=6)
+            if resp.status_code == 200:
+                # Basic schema check
+                data = resp.json()
+                return isinstance(data, dict) and data.get("status") == "active"
+            return False
+        except Exception as e:
+            logger.warning(f"test_connection failed: {e}")
+            return False
+
+    # Legacy method names used in older code paths
+    def login(self, username: str, password: str) -> Dict:
+        """Legacy login wrapper returning dict with success and user info."""
+        success = self.authenticate(username, password)
+        if success:
+            return {"success": True, **self.user_data}
+        return {"success": False, "message": "Invalid credentials"}
+
+    def register_user(self, username: str, password: str, email: str, subscription_type: str = "free") -> Dict:
+        """Legacy registration wrapper to maintain backward compatibility."""
+        try:
+            payload = {
+                "username": username,
+                "password": password,
+                "email": email,
+                "subscription_type": subscription_type
+            }
+            resp = requests.post(f"{self.api_base_url}/api/auth/register", json=payload, timeout=12)
+            if resp.status_code == 200:
+                data = resp.json()
+                return data
+            return {"success": False, "message": f"Registration failed ({resp.status_code})"}
+        except Exception as e:
+            logger.error(f"Registration error: {e}")
+            return {"success": False, "message": str(e)}
         
     def _load_cached_credentials(self):
         """Load cached API key and user data"""
