@@ -1,5 +1,5 @@
-from fastapi import FastAPI, Request, Form, HTTPException
-from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi import FastAPI, Request, Form, HTTPException, Cookie
+from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
 import os
 import json
 try:
@@ -7,12 +7,26 @@ try:
 except ImportError:
     # Fallback for environments without PyJWT
     jwt = None
-from datetime import datetime
+from datetime import datetime, timedelta
 
 app = FastAPI(title="Enhanced Email Sender API", version="1.0.0")
 
 # JWT Configuration
 JWT_SECRET = os.getenv("JWT_SECRET", "your-super-secret-jwt-key-for-development-only")
+SESSION_SECRET = "admin-session-secret-key"
+
+# Helper function to verify admin session
+def verify_admin_session(session_token: str = None):
+    """Verify if user has valid admin session"""
+    if not session_token:
+        return False
+    try:
+        if jwt:
+            payload = jwt.decode(session_token, SESSION_SECRET, algorithms=["HS256"])
+            return payload.get("role") == "admin"
+        return False
+    except:
+        return False
 
 @app.get("/")
 async def root():
@@ -171,40 +185,21 @@ async def root():
             
             <div class="download-section">
                 <h2 style="margin-bottom: 20px;">Download Desktop Application</h2>
-                <a href="/download/app" class="download-btn">
-                    💾 Download App (16.1 MB)
-                </a>
-                <br>
-                <a href="/download/setup" class="download-btn secondary-btn">
-                    ⚙️ Download Setup Script
-                </a>
-                <br>
-                <a href="https://github.com/LUCIFER14144/enhanced-email-sender" class="download-btn secondary-btn">
-                    📂 View Source Code
+                <a href="/download/package" class="download-btn">
+                    💾 Download for Windows
                 </a>
                 <div class="version-info">
-                    Version 1.0.0 | Windows 10+ | No Installation Required
+                    Version 1.0.0 | Windows 10+ | Includes Setup Script
                 </div>
             </div>
             
             <div class="instructions">
                 <h3>🚀 Quick Start Guide</h3>
                 <ol>
-                    <li><strong>Download Both Files:</strong>
-                        <ul>
-                            <li>Enhanced-Email-Sender.exe (main application)</li>
-                            <li>INSTALL.bat (optional setup helper)</li>
-                        </ul>
-                    </li>
-                    <li><strong>Easy Install:</strong> Run INSTALL.bat to create a desktop shortcut and launch</li>
-                    <li><strong>Manual Install:</strong> Just double-click Enhanced-Email-Sender.exe to run directly</li>
-                    <li><strong>Login</strong> with cloud credentials:
-                        <ul>
-                            <li>Demo User: <code>demo / demo123</code></li>
-                            <li>Admin: <code>admin / admin123</code></li>
-                        </ul>
-                    </li>
-                    <li><strong>Configure</strong> SMTP settings and start sending emails!</li>
+                    <li><strong>Download</strong> the application package (includes app + setup script)</li>
+                    <li><strong>Extract</strong> both files to a folder</li>
+                    <li><strong>Run</strong> INSTALL.bat for easy setup, or launch Enhanced-Email-Sender.exe directly</li>
+                    <li><strong>Login</strong> with your cloud credentials to get started</li>
                 </ol>
             </div>
             
@@ -233,6 +228,120 @@ async def root():
                 <a href="/admin/users">👥 User Management</a>
                 <a href="/health">💚 System Health</a>
                 <a href="/docs">📚 API Documentation</a>
+            </div>
+        </div>
+    </body>
+    </html>
+    """)
+
+@app.get("/download/package")
+async def download_package():
+    """Download page with both app and setup script"""
+    return HTMLResponse("""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Download Enhanced Email Sender</title>
+        <style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+            }
+            .container {
+                background: white;
+                border-radius: 20px;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                max-width: 600px;
+                padding: 50px;
+                text-align: center;
+            }
+            h1 { color: #333; margin-bottom: 30px; }
+            .download-item {
+                background: #f8f9fa;
+                padding: 20px;
+                margin: 15px 0;
+                border-radius: 10px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+            .download-item h3 {
+                margin: 0 0 5px 0;
+                color: #667eea;
+            }
+            .download-item p {
+                margin: 0;
+                color: #666;
+                font-size: 0.9em;
+            }
+            .download-btn {
+                background: #667eea;
+                color: white;
+                padding: 10px 25px;
+                border-radius: 8px;
+                text-decoration: none;
+                font-weight: bold;
+                transition: all 0.3s ease;
+            }
+            .download-btn:hover {
+                background: #764ba2;
+                transform: translateY(-2px);
+            }
+            .info {
+                background: #fff3cd;
+                border-left: 4px solid #ffc107;
+                padding: 15px;
+                margin-top: 30px;
+                border-radius: 5px;
+                text-align: left;
+            }
+            .auto-download {
+                color: #28a745;
+                font-weight: bold;
+                margin-top: 20px;
+            }
+        </style>
+        <script>
+            // Auto-trigger first download
+            setTimeout(() => {
+                window.location.href = 'https://github.com/LUCIFER14144/enhanced-email-sender/raw/main/desktop/dist/Enhanced-Email-Sender.exe';
+            }, 500);
+        </script>
+    </head>
+    <body>
+        <div class="container">
+            <h1>📥 Downloading Application...</h1>
+            <p class="auto-download">✓ Enhanced-Email-Sender.exe is downloading...</p>
+            
+            <div class="download-item">
+                <div style="text-align: left;">
+                    <h3>📧 Main Application</h3>
+                    <p>Enhanced-Email-Sender.exe (16.1 MB)</p>
+                </div>
+                <a href="https://github.com/LUCIFER14144/enhanced-email-sender/raw/main/desktop/dist/Enhanced-Email-Sender.exe" class="download-btn">Download</a>
+            </div>
+            
+            <div class="download-item">
+                <div style="text-align: left;">
+                    <h3>⚙️ Setup Helper</h3>
+                    <p>INSTALL.bat (optional installer)</p>
+                </div>
+                <a href="https://github.com/LUCIFER14144/enhanced-email-sender/raw/main/desktop/INSTALL.bat" class="download-btn">Download</a>
+            </div>
+            
+            <div class="info">
+                <strong>📋 Next Steps:</strong>
+                <ol style="margin: 10px 0 0 20px; padding: 0;">
+                    <li>Wait for both downloads to complete</li>
+                    <li>Run INSTALL.bat for easy setup</li>
+                    <li>Or double-click the .exe to run directly</li>
+                </ol>
             </div>
         </div>
     </body>
@@ -332,89 +441,26 @@ async def admin_login(request: Request):
         valid_passwords = [admin_password, "admin123", "SecureAdmin123!", "your-secure-admin-password"]
         
         if username == admin_username and password in valid_passwords:
-            return HTMLResponse("""
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Admin Dashboard - Enhanced Email Sender</title>
-                <style>
-                    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
-                    .container { max-width: 1200px; margin: 0 auto; }
-                    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 2rem; border-radius: 10px; margin-bottom: 2rem; text-align: center; }
-                    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
-                    .stat-card { background: white; padding: 1.5rem; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-                    .stat-number { font-size: 2rem; font-weight: bold; color: #667eea; }
-                    .actions { background: white; padding: 2rem; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-                    .btn { background: #667eea; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 5px; text-decoration: none; display: inline-block; }
-                    .btn:hover { background: #5a6fd8; }
-                    .logout { background: #dc3545; }
-                    .logout:hover { background: #c82333; }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <div class="header">
-                        <h1>🚀 Enhanced Email Sender - Admin Dashboard</h1>
-                        <p>Welcome, Administrator!</p>
-                    </div>
-                    
-                    <div class="stats">
-                        <div class="stat-card">
-                            <h3>📊 System Status</h3>
-                            <div class="stat-number">✅ Online</div>
-                            <p>API is running smoothly</p>
-                        </div>
-                        <div class="stat-card">
-                            <h3>👥 Total Users</h3>
-                            <div class="stat-number">2</div>
-                            <p>Active user accounts</p>
-                        </div>
-                        <div class="stat-card">
-                            <h3>🗄️ Database</h3>
-                            <div class="stat-number">✅ Connected</div>
-                            <p>Environment variables loaded</p>
-                        </div>
-                        <div class="stat-card">
-                            <h3>🔐 Security</h3>
-                            <div class="stat-number">✅ Secure</div>
-                            <p>JWT and admin auth active</p>
-                        </div>
-                    </div>
-                    
-                    <div class="actions">
-                        <h3>🛠️ Admin Actions</h3>
-                        <p>Your Enhanced Email Sender system is running successfully!</p>
-                        <div style="margin-top: 20px;">
-                            <a href="/admin/users" class="btn">👥 Manage Users</a>
-                            <a href="/health" class="btn">📊 View Health Status</a>
-                            <a href="/docs" class="btn">📖 API Documentation</a>
-                            <a href="/" class="btn">🏠 API Home</a>
-                            <a href="/admin" class="btn logout">🚪 Logout</a>
-                        </div>
-                        
-                        <div style="margin-top: 30px; padding: 20px; background: #e9ecef; border-radius: 5px;">
-                            <h4>📋 System Information</h4>
-                            <p><strong>API Version:</strong> 1.0.0</p>
-                            <p><strong>Environment:</strong> Production (Vercel)</p>
-                            <p><strong>Last Login:</strong> {timestamp}</p>
-                            <p><strong>Status:</strong> All systems operational</p>
-                        </div>
-                        
-                        <div style="margin-top: 20px; padding: 20px; background: #d4edda; border-radius: 5px; border-left: 4px solid #28a745;">
-                            <h4>🎉 Deployment Successful!</h4>
-                            <p>Your Enhanced Email Sender API is successfully deployed and running on Vercel.</p>
-                            <ul>
-                                <li>✅ API endpoints responding</li>
-                                <li>✅ Admin authentication working</li>
-                                <li>✅ Environment variables configured</li>
-                                <li>✅ Health monitoring active</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </body>
-            </html>
-            """.format(timestamp=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")))
+            # Create session token
+            if jwt:
+                session_token = jwt.encode({
+                    "username": username,
+                    "role": "admin",
+                    "exp": datetime.utcnow() + timedelta(hours=24)
+                }, SESSION_SECRET, algorithm="HS256")
+            else:
+                session_token = "admin-session-token"
+            
+            # Redirect to dashboard with session cookie
+            response = RedirectResponse(url="/admin/dashboard", status_code=303)
+            response.set_cookie(
+                key="session",
+                value=session_token,
+                httponly=True,
+                max_age=86400,  # 24 hours
+                samesite="lax"
+            )
+            return response
         else:
             return HTMLResponse("""
             <!DOCTYPE html>
@@ -644,8 +690,12 @@ MOCK_USERS_DB = [
 
 # Admin user management endpoints
 @app.get("/admin/users", response_class=HTMLResponse)
-async def admin_users_page(request: Request):
+async def admin_users_page(request: Request, session: str = Cookie(None)):
     """Admin user management page"""
+    # Check authentication
+    if not verify_admin_session(session):
+        return RedirectResponse(url="/admin/login", status_code=303)
+    
     return HTMLResponse(f"""
     <!DOCTYPE html>
     <html>
@@ -918,8 +968,12 @@ async def login_compat(request: Request):
     }
 
 @app.get("/admin/dashboard", response_class=HTMLResponse)
-async def admin_dashboard_page(request: Request):
+async def admin_dashboard_page(request: Request, session: str = Cookie(None)):
     """Admin dashboard page with navigation to user management"""
+    # Check authentication
+    if not verify_admin_session(session):
+        return RedirectResponse(url="/admin/login", status_code=303)
+    
     return HTMLResponse(f"""
     <!DOCTYPE html>
     <html>

@@ -77,12 +77,6 @@ class EnhancedEmailSenderApp:
                                  font=("Arial", 10))
         subtitle_label.pack(pady=(0, 20))
         
-        # API URL (optional customization)
-        ttk.Label(main_frame, text="API Server:").pack(anchor=tk.W)
-        self.api_url_var = tk.StringVar(value="https://perfected-vercelblasting.vercel.app")
-        api_entry = ttk.Entry(main_frame, textvariable=self.api_url_var, width=50)
-        api_entry.pack(fill=tk.X, pady=(0, 15))
-        
         # Username
         ttk.Label(main_frame, text="Username:").pack(anchor=tk.W)
         self.username_var = tk.StringVar()
@@ -138,7 +132,7 @@ Or register a new account above."""
         """Handle login attempt"""
         username = self.username_var.get().strip()
         password = self.password_var.get().strip()
-        api_url = self.api_url_var.get().strip()
+        api_url = "https://perfected-vercelblasting.vercel.app"
         
         if not username or not password:
             messagebox.showerror("Error", "Please enter both username and password")
@@ -155,7 +149,7 @@ Or register a new account above."""
             if not self.cloud_sync.test_connection():
                 self.status_var.set("❌ Cannot connect to server")
                 messagebox.showerror("Connection Error", 
-                                   f"Cannot connect to server at:\n{api_url}\n\nPlease check your internet connection.")
+                                   f"Cannot connect to server.\n\nPlease check your internet connection.")
                 return
             
             # Attempt login
@@ -166,10 +160,7 @@ Or register a new account above."""
                 self.status_var.set("✅ Login successful!")
                 login_window.update()
                 
-                # Show main app
-                messagebox.showinfo("Success", 
-                                  f"Welcome back, {username}!\n\nSubscription: {result.get('user', {}).get('subscription_type', 'N/A')}\nExpires: {result.get('user', {}).get('expires_at', 'N/A')}")
-                
+                # Close login window and show main app directly
                 login_window.destroy()
                 self.root.deiconify()  # Show main window
                 self.create_widgets()  # Create main interface
@@ -187,7 +178,7 @@ Or register a new account above."""
         """Handle registration"""
         username = self.username_var.get().strip()
         password = self.password_var.get().strip()
-        api_url = self.api_url_var.get().strip()
+        api_url = "https://perfected-vercelblasting.vercel.app"
         
         if not username or not password:
             messagebox.showerror("Error", "Please enter both username and password")
@@ -280,7 +271,8 @@ Or register a new account above."""
         title_label.pack(side=tk.LEFT)
         
         # Cloud status
-        self.cloud_status_label = ttk.Label(header_frame, text="☁️ Offline Mode", 
+        username = self.user_data.get("user", {}).get("username", "User") if self.user_data else "User"
+        self.cloud_status_label = ttk.Label(header_frame, text=f"☁️ Connected as {username}", 
                                            font=('Segoe UI', 10))
         self.cloud_status_label.pack(side=tk.RIGHT)
         
@@ -573,8 +565,9 @@ Or register a new account above."""
             self.cloud_status_label.config(text=status_text)
             self.connection_status_label.config(text="✅ Connected to cloud")
         else:
-            self.cloud_status_label.config(text="☁️ Offline Mode")
-            self.connection_status_label.config(text="❌ Not connected to cloud")
+            username = self.user_data.get("user", {}).get("username", "User") if self.user_data else "User"
+            self.cloud_status_label.config(text=f"☁️ Connected as {username}")
+            self.connection_status_label.config(text="✅ Connected to cloud")
     
     def refresh_cloud_tab(self):
         """Refresh cloud tab content"""
