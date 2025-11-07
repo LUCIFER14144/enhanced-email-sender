@@ -32,11 +32,11 @@
     },
     {
       "src": "/admin",
-      "dest": "/api/main_production.py"
+      "dest": "/api/main.py"
     },
     {
       "src": "/admin/(.*)",
-      "dest": "/api/main_production.py"
+      "dest": "/api/main.py"
     },
     {
       "src": "/api/admin/(.*)",
@@ -45,11 +45,11 @@
     },
     {
       "src": "/api/(.*)",
-      "dest": "/api/main_production.py"
+      "dest": "/api/main.py"
     },
     {
       "src": "/(.*)",
-      "dest": "/api/main_production.py"
+      "dest": "/api/main.py"
     }
   ],
   "env": {
