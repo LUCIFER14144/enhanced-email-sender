@@ -16,12 +16,262 @@ JWT_SECRET = os.getenv("JWT_SECRET", "your-super-secret-jwt-key-for-development-
 
 @app.get("/")
 async def root():
-    return {
-        "message": "Enhanced Email Sender API",
-        "status": "active",
-        "version": "1.0.0",
-        "timestamp": datetime.utcnow().isoformat()
-    }
+    """Root endpoint - Download page for desktop application"""
+    return HTMLResponse("""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Enhanced Email Sender - Download</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+            }
+            .container {
+                background: white;
+                border-radius: 20px;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                max-width: 800px;
+                width: 100%;
+                padding: 50px;
+                text-align: center;
+            }
+            h1 {
+                color: #333;
+                font-size: 2.5em;
+                margin-bottom: 10px;
+            }
+            .subtitle {
+                color: #666;
+                font-size: 1.2em;
+                margin-bottom: 40px;
+            }
+            .features {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 20px;
+                margin: 40px 0;
+                text-align: left;
+            }
+            .feature {
+                padding: 20px;
+                background: #f8f9fa;
+                border-radius: 10px;
+            }
+            .feature h3 {
+                color: #667eea;
+                margin-bottom: 10px;
+                font-size: 1.1em;
+            }
+            .feature p {
+                color: #666;
+                font-size: 0.9em;
+            }
+            .download-section {
+                margin: 40px 0;
+                padding: 30px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                border-radius: 15px;
+                color: white;
+            }
+            .download-btn {
+                display: inline-block;
+                background: white;
+                color: #667eea;
+                padding: 15px 40px;
+                border-radius: 50px;
+                text-decoration: none;
+                font-weight: bold;
+                font-size: 1.2em;
+                margin: 10px;
+                transition: all 0.3s ease;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            }
+            .download-btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+            }
+            .secondary-btn {
+                background: rgba(255,255,255,0.2);
+                color: white;
+                border: 2px solid white;
+            }
+            .version-info {
+                margin-top: 20px;
+                font-size: 0.9em;
+                opacity: 0.9;
+            }
+            .admin-link {
+                margin-top: 40px;
+                padding-top: 30px;
+                border-top: 2px solid #eee;
+            }
+            .admin-link a {
+                color: #667eea;
+                text-decoration: none;
+                font-weight: 600;
+                padding: 10px 20px;
+                border: 2px solid #667eea;
+                border-radius: 8px;
+                display: inline-block;
+                margin: 5px;
+                transition: all 0.3s ease;
+            }
+            .admin-link a:hover {
+                background: #667eea;
+                color: white;
+            }
+            .status {
+                display: inline-block;
+                background: #28a745;
+                color: white;
+                padding: 5px 15px;
+                border-radius: 20px;
+                font-size: 0.9em;
+                margin-bottom: 20px;
+            }
+            .instructions {
+                background: #fff3cd;
+                border-left: 4px solid #ffc107;
+                padding: 20px;
+                margin: 30px 0;
+                border-radius: 5px;
+                text-align: left;
+            }
+            .instructions h3 {
+                color: #856404;
+                margin-bottom: 15px;
+            }
+            .instructions ol {
+                color: #856404;
+                margin-left: 20px;
+            }
+            .instructions li {
+                margin: 10px 0;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <span class="status">🟢 System Online</span>
+            <h1>📧 Enhanced Email Sender</h1>
+            <p class="subtitle">Cloud-enabled email management system with subscription control</p>
+            
+            <div class="download-section">
+                <h2 style="margin-bottom: 20px;">Download Desktop Application</h2>
+                <a href="/download/app" class="download-btn">
+                    💾 Download App (16.1 MB)
+                </a>
+                <br>
+                <a href="/download/setup" class="download-btn secondary-btn">
+                    ⚙️ Download Setup Script
+                </a>
+                <br>
+                <a href="https://github.com/LUCIFER14144/enhanced-email-sender" class="download-btn secondary-btn">
+                    📂 View Source Code
+                </a>
+                <div class="version-info">
+                    Version 1.0.0 | Windows 10+ | No Installation Required
+                </div>
+            </div>
+            
+            <div class="instructions">
+                <h3>🚀 Quick Start Guide</h3>
+                <ol>
+                    <li><strong>Download Both Files:</strong>
+                        <ul>
+                            <li>Enhanced-Email-Sender.exe (main application)</li>
+                            <li>INSTALL.bat (optional setup helper)</li>
+                        </ul>
+                    </li>
+                    <li><strong>Easy Install:</strong> Run INSTALL.bat to create a desktop shortcut and launch</li>
+                    <li><strong>Manual Install:</strong> Just double-click Enhanced-Email-Sender.exe to run directly</li>
+                    <li><strong>Login</strong> with cloud credentials:
+                        <ul>
+                            <li>Demo User: <code>demo / demo123</code></li>
+                            <li>Admin: <code>admin / admin123</code></li>
+                        </ul>
+                    </li>
+                    <li><strong>Configure</strong> SMTP settings and start sending emails!</li>
+                </ol>
+            </div>
+            
+            <div class="features">
+                <div class="feature">
+                    <h3>☁️ Cloud Authentication</h3>
+                    <p>Secure login with your cloud account. Access your data from anywhere.</p>
+                </div>
+                <div class="feature">
+                    <h3>📊 Campaign Tracking</h3>
+                    <p>Monitor your email campaigns with detailed analytics and statistics.</p>
+                </div>
+                <div class="feature">
+                    <h3>🎯 Subscription Management</h3>
+                    <p>Tier-based email limits with real-time validation and monitoring.</p>
+                </div>
+                <div class="feature">
+                    <h3>📧 SMTP Integration</h3>
+                    <p>Send emails via Gmail, Outlook, or any custom SMTP server.</p>
+                </div>
+            </div>
+            
+            <div class="admin-link">
+                <p style="color: #666; margin-bottom: 15px;">System Administration</p>
+                <a href="/admin/dashboard">🔐 Admin Dashboard</a>
+                <a href="/admin/users">👥 User Management</a>
+                <a href="/health">💚 System Health</a>
+                <a href="/docs">📚 API Documentation</a>
+            </div>
+        </div>
+    </body>
+    </html>
+    """)
+
+@app.get("/download/setup")
+async def download_setup():
+    """Redirect to GitHub download page for setup batch file"""
+    return HTMLResponse("""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta http-equiv="refresh" content="0; url=https://github.com/LUCIFER14144/enhanced-email-sender/raw/main/desktop/INSTALL.bat">
+        <title>Downloading Setup...</title>
+    </head>
+    <body style="font-family: Arial; text-align: center; padding: 50px;">
+        <h2>Downloading INSTALL.bat...</h2>
+        <p>If the download doesn't start automatically, <a href="https://github.com/LUCIFER14144/enhanced-email-sender/raw/main/desktop/INSTALL.bat">click here</a>.</p>
+    </body>
+    </html>
+    """)
+
+@app.get("/download/app")
+async def download_app():
+    """Redirect to GitHub download page for executable"""
+    return HTMLResponse("""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta http-equiv="refresh" content="0; url=https://github.com/LUCIFER14144/enhanced-email-sender/raw/main/desktop/dist/Enhanced-Email-Sender.exe">
+        <title>Downloading Application...</title>
+    </head>
+    <body style="font-family: Arial; text-align: center; padding: 50px;">
+        <h2>Downloading Enhanced-Email-Sender.exe...</h2>
+        <p>If the download doesn't start automatically, <a href="https://github.com/LUCIFER14144/enhanced-email-sender/raw/main/desktop/dist/Enhanced-Email-Sender.exe">click here</a>.</p>
+    </body>
+    </html>
+    """)
 
 @app.get("/health")
 async def health():
