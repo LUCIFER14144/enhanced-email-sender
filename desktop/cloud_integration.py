@@ -28,16 +28,45 @@ class CloudSync:
         self.api_base_url = api_base_url or "https://perfected-vercelblasting.vercel.app"
         self.token = None
         self.user_data = None
+        self.api_key = None
+        self.subscription_info = None
         self.expiration_check_interval = 300  # Check every 5 minutes
         self.last_sync = None
+        self._load_cached_credentials()
+        
+    def _load_cached_credentials(self):
+        """Load cached API key and user data"""
+        try:
+            cache_file = os.path.join(os.getenv('APPDATA'), 'EmailSender', 'credentials.json')
+            if os.path.exists(cache_file):
+                with open(cache_file, 'r') as f:
+                    data = json.load(f)
+                    self.api_key = data.get('api_key')
+                    self.user_data = data.get('user_data')
+        except Exception as e:
+            logger.error(f"Failed to load cached credentials: {e}")
+    
+    def _save_cached_credentials(self):
+        """Save API key and user data to cache"""
+        try:
+            cache_dir = os.path.join(os.getenv('APPDATA'), 'EmailSender')
+            os.makedirs(cache_dir, exist_ok=True)
+            cache_file = os.path.join(cache_dir, 'credentials.json')
+            with open(cache_file, 'w') as f:
+                json.dump({
+                    'api_key': self.api_key,
+                    'user_data': self.user_data
+                }, f)
+        except Exception as e:
+            logger.error(f"Failed to save cached credentials: {e}")
         
     def authenticate(self, username: str, password: str) -> bool:
-        """Authenticate user with cloud backend"""
+        """Authenticate user with cloud backend and get API key"""
         try:
             logger.info(f"Authenticating user: {username}")
             response = requests.post(
-                f"{self.api_base_url}/api/auth/login",
-                json={"username": username, "password": password},
+                f"{self.api_base_url}/token",
+                data={"username": username, "password": password},
                 timeout=10
             )
             
@@ -58,15 +87,21 @@ class CloudSync:
             logger.error(f"Authentication error: {e}")
             return False
     
-    def check_subscription_status(self) -> bool:
-        """Check if user subscription is still valid"""
-        if not self.token:
-            return False
+    def check_subscription_status(self) -> dict:
+        """Check user subscription status and limits"""
+        if not self.api_key:
+            return {
+                "valid": False,
+                "error": "No API key available"
+            }
             
         try:
-            headers = {"Authorization": f"Bearer {self.token}"}
+            headers = {
+                "X-API-Key": self.api_key,
+                "User-Agent": "EnhancedEmailSender-Desktop/1.0"
+            }
             response = requests.get(
-                f"{self.api_base_url}/api/auth/status",
+                f"{self.api_base_url}/api/validate",
                 headers=headers,
                 timeout=10
             )

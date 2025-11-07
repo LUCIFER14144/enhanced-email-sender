@@ -3,16 +3,44 @@
   "routes": [
     {
       "src": "/static/(.*)",
-      "dest": "admin/static/$1"
+      "dest": "/admin/static/$1",
+      "headers": {
+        "cache-control": "public, max-age=31536000, immutable"
+      }
+    },
+    {
+      "src": "/favicon.ico",
+      "dest": "/admin/static/favicon.ico"
+    },
+    {
+      "src": "/admin/(.*)",
+      "dest": "/api/main_production.py"
     },
     {
       "src": "/(.*)",
-      "dest": "api/minimal.py"
+      "dest": "/api/main_production.py"
     }
   ],
   "functions": {
-    "api/minimal.py": {
-      "maxDuration": 30
+    "api/main_production.py": {
+      "maxDuration": 60,
+      "memory": 1024
+    }
+  },
+  "env": {
+    "PYTHON_VERSION": "3.9",
+    "DATABASE_URL": "@database-url",
+    "JWT_SECRET": "@jwt-secret",
+    "ADMIN_SECRET": "@admin-secret",
+    "POSTGRES_USER": "@postgres-user",
+    "POSTGRES_PASSWORD": "@postgres-password",
+    "POSTGRES_HOST": "@postgres-host",
+    "POSTGRES_DB": "@postgres-db"
+  },
+  "build": {
+    "env": {
+      "PIP_TARGET": ".pip",
+      "PYTHONPATH": "/var/task/.pip"
     }
   }
 }
