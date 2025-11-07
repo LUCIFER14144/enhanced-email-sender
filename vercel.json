@@ -29,7 +29,7 @@
       }
     },
     {
-      "src": "/admin/(login|dashboard|logout)",
+      "src": "/admin/(login|dashboard|logout|users|campaigns|settings)",
       "dest": "/api/admin.py"
     },
     {

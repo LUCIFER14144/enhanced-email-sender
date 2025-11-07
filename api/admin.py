@@ -1,11 +1,31 @@
 from fastapi import FastAPI, HTTPException, Request, Form, Response
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
+from fastapi.middleware.cors import CORSMiddleware
 import jwt
 import os
 from datetime import datetime, timedelta
 
 app = FastAPI()
+
+# Enable CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Error Handler
+@app.exception_handler(404)
+async def not_found_handler(request: Request, exc: HTTPException):
+    if request.url.path.startswith("/admin/"):
+        return RedirectResponse(url="/admin/login")
+    return JSONResponse(
+        status_code=404,
+        content={"detail": "Not Found"}
+    )
 
 # Configuration
 JWT_SECRET = os.getenv("JWT_SECRET", "your-super-secret-jwt-key-change-in-production")
@@ -150,7 +170,7 @@ async def admin_users(request: Request):
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
         if payload.get("role") != "admin":
-            raise HTTPException(status_code=403)
+            return RedirectResponse(url="/admin/login")
         
         return HTMLResponse(content="""
         <!DOCTYPE html>
