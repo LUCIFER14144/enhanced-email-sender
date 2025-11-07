@@ -1,10 +1,14 @@
-from fastapi import FastAPI, Request, Form
+from fastapi import FastAPI, Request, Form, HTTPException
 from fastapi.responses import JSONResponse, HTMLResponse
 import os
 import json
+import jwt
 from datetime import datetime
 
 app = FastAPI(title="Enhanced Email Sender API", version="1.0.0")
+
+# JWT Configuration
+JWT_SECRET = os.getenv("JWT_SECRET", "your-super-secret-jwt-key-for-development-only")
 
 @app.get("/")
 async def root():
@@ -609,6 +613,111 @@ async def admin_delete_user(user_id: int):
             window.location.href = '/admin/users';
         </script>
         """)
+
+# Add compatibility endpoints for desktop app
+@app.post("/login")
+async def login_compat(request: Request):
+    """Compatibility endpoint for desktop app login"""
+    form = await request.form()
+    username = form.get("username", "").strip()
+    password = form.get("password", "").strip()
+    
+    # Check demo accounts
+    if username == "admin" and password == "admin123":
+        user_data = {"username": "admin", "role": "admin", "id": 1}
+    elif username == "demo" and password == "demo123":
+        user_data = {"username": "demo", "role": "user", "id": 2}
+    elif username == "testuser" and password == "testpass123":
+        user_data = {"username": "testuser", "role": "user", "id": 3}
+    else:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    # Create JWT token
+    token_data = {"sub": username, "role": user_data["role"]}
+    access_token = jwt.encode(token_data, JWT_SECRET, algorithm="HS256")
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": user_data
+    }
+
+@app.get("/admin/dashboard", response_class=HTMLResponse)
+async def admin_dashboard_page(request: Request):
+    """Admin dashboard page with navigation to user management"""
+    return HTMLResponse(f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Admin Dashboard - Enhanced Email Sender</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }}
+            .container {{ max-width: 1200px; margin: 0 auto; }}
+            .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 2rem; border-radius: 10px; margin-bottom: 2rem; }}
+            .card {{ background: white; padding: 2rem; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 2rem; }}
+            .btn {{ background: #667eea; color: white; padding: 15px 25px; border: none; border-radius: 5px; cursor: pointer; margin: 10px; text-decoration: none; display: inline-block; font-size: 16px; }}
+            .btn:hover {{ background: #5a6fd8; }}
+            .stats-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 20px; }}
+            .stat-card {{ background: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center; }}
+            .stat-number {{ font-size: 2em; font-weight: bold; color: #667eea; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>Admin Dashboard</h1>
+                <p>Enhanced Email Sender - Cloud Management System</p>
+            </div>
+            
+            <div class="card">
+                <h3>Admin Controls</h3>
+                <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                    <a href="/admin/users" class="btn">Manage Users</a>
+                    <a href="/debug" class="btn">System Debug</a>
+                    <a href="/health" class="btn">Health Status</a>
+                    <a href="/docs" class="btn">API Documentation</a>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3>System Overview</h3>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number">{len(MOCK_USERS_DB)}</div>
+                        <div>Total Users</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">{len([u for u in MOCK_USERS_DB if u["is_active"]])}</div>
+                        <div>Active Users</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">{sum(u["total_emails_sent"] for u in MOCK_USERS_DB)}</div>
+                        <div>Total Emails Sent</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">{len([u for u in MOCK_USERS_DB if u["subscription_type"] in ["premium", "enterprise"]])}</div>
+                        <div>Premium Users</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3>Quick Actions</h3>
+                <p>
+                    <strong>Desktop App Integration:</strong> Users can download and run the desktop app, 
+                    which will connect to this cloud system for authentication and data storage.
+                </p>
+                <p>
+                    <strong>User Management:</strong> Add, remove, and manage user subscriptions through the user management interface.
+                </p>
+                <p>
+                    <strong>Real-time Monitoring:</strong> Track user activity and system health through the debug and health endpoints.
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """)
 
 # Test endpoint
 @app.get("/test")
