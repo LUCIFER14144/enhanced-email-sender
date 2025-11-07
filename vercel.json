@@ -26,19 +26,19 @@
     },
     {
       "src": "/admin/(.*)",
-      "dest": "/api/main_production.py"
+      "dest": "/api/index.py"
     },
     {
       "src": "/admin",
-      "dest": "/api/main_production.py"
+      "dest": "/api/index.py"
     },
     {
       "src": "/(.*)",
-      "dest": "/api/main_production.py"
+      "dest": "/api/index.py"
     }
   ],
   "functions": {
-    "api/main_production.py": {
+    "api/index.py": {
       "maxDuration": 60,
       "memory": 1024
     }
