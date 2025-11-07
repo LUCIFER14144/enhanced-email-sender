@@ -293,6 +293,9 @@ async def validate_token():
 # Debug endpoint
 @app.get("/debug")
 async def debug_info():
+    admin_username = os.getenv("ADMIN_USERNAME", "admin")
+    admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
+    
     return {
         "message": "Debug Information",
         "environment_variables": {
@@ -301,6 +304,11 @@ async def debug_info():
             "JWT_SECRET": "✅ Set" if os.getenv("JWT_SECRET") else "❌ Missing",
             "ADMIN_USERNAME": "✅ Set" if os.getenv("ADMIN_USERNAME") else "❌ Missing",
             "ADMIN_PASSWORD": "✅ Set" if os.getenv("ADMIN_PASSWORD") else "❌ Missing",
+        },
+        "admin_credentials": {
+            "username": admin_username,
+            "password_length": len(admin_password),
+            "password_starts_with": admin_password[:3] + "***" if admin_password else "Not set"
         },
         "demo_accounts": {
             "admin": "admin123",
