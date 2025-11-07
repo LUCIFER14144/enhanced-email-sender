@@ -225,13 +225,9 @@ Or register a new account above."""
                 for recipient in result["recipients"]:
                     # Add to UI (implement based on your recipient UI)
                     pass
-                    
-            # Check subscription status
-            sub_result = self.cloud_sync.validate_subscription()
-            if sub_result["success"]:
-                if not sub_result["valid"]:
-                    messagebox.showwarning("Subscription Expired", 
-                                         f"Your subscription expired on {sub_result.get('expires_at', 'Unknown')}\n\nPlease contact admin to extend your subscription.")
+            
+            # Note: Subscription validation moved to when actually sending emails
+            # to avoid false "expired" warnings on login
                     
         except Exception as e:
             logger.error(f"Error loading user data: {e}")
@@ -1107,48 +1103,10 @@ def main():
         print("Error: tkinter not found. Please install Python with tkinter support.")
         return
     
-    # Show cloud login first
+    # Create main application (it will handle login internally)
     print("Starting Enhanced Email Sender...")
-    cloud_sync = create_cloud_login_window()
-    
-    # Exit if user didn't authenticate
-    if not cloud_sync:
-        print("Cloud authentication required. Exiting...")
-        return
-    
-    # Create main application
     root = tk.Tk()
     app = EnhancedEmailSenderApp(root)
-    
-    # Set cloud sync if authenticated
-    if cloud_sync:
-        app.cloud_sync = cloud_sync
-        app.update_cloud_status()
-        app.refresh_cloud_tab()
-        
-        # Start subscription monitoring
-        def monitor_subscription():
-            while True:
-                try:
-                    if not cloud_sync.check_subscription_status():
-                        # Subscription expired
-                        root.after(0, lambda: messagebox.showerror(
-                            "Subscription Expired", 
-                            "Your subscription has expired. The application will close."
-                        ))
-                        root.after(1000, root.quit)
-                        break
-                    
-                    # Check every 5 minutes
-                    threading.Event().wait(300)
-                    
-                except Exception as e:
-                    logger.error(f"Subscription monitoring error: {e}")
-                    break
-        
-        # Start monitoring thread
-        monitor_thread = threading.Thread(target=monitor_subscription, daemon=True)
-        monitor_thread.start()
     
     # Start the application
     root.protocol("WM_DELETE_WINDOW", lambda: root.quit())
