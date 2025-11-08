@@ -12,6 +12,28 @@ import datetime
 import subprocess
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext
+import sys
+
+# Security: Setup wkhtmltopdf path from local directory
+def setup_wkhtmltopdf_path():
+    """Setup wkhtmltopdf to use bundled version if available"""
+    if getattr(sys, 'frozen', False):
+        # Running as compiled executable
+        base_path = os.path.dirname(sys.executable)
+    else:
+        # Running as script
+        base_path = os.path.dirname(os.path.abspath(__file__))
+    
+    wkhtmltopdf_path = os.path.join(base_path, 'wkhtmltopdf', 'bin')
+    
+    if os.path.exists(wkhtmltopdf_path):
+        # Add to PATH at the beginning (priority)
+        os.environ['PATH'] = wkhtmltopdf_path + os.pathsep + os.environ.get('PATH', '')
+        return True
+    return False
+
+# Initialize wkhtmltopdf path
+WKHTMLTOPDF_AVAILABLE = setup_wkhtmltopdf_path()
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
@@ -77,7 +99,8 @@ class CloudSyncLite:
 
     def test_connection(self) -> bool:
         try:
-            r = requests.get(f"{self.api_base_url}/", timeout=6)
+            # Security: Add timeout and verify SSL
+            r = requests.get(f"{self.api_base_url}/", timeout=6, verify=True)
             if r.status_code == 200:
                 data = r.json()
                 return isinstance(data, dict) and data.get("status") == "active"
@@ -87,10 +110,19 @@ class CloudSyncLite:
 
     def login(self, username: str, password: str) -> dict:
         try:
+            # Security: Input validation
+            if not username or not password:
+                return {"success": False, "message": "Username and password required"}
+            
+            if len(username) > 100 or len(password) > 100:
+                return {"success": False, "message": "Invalid credentials"}
+            
+            # Security: SSL verification and timeout
             r = requests.post(
                 f"{self.api_base_url}/api/auth/login",
-                json={"username": username, "password": password},
-                timeout=12
+                json={"username": username.strip(), "password": password},
+                timeout=12,
+                verify=True
             )
             if r.status_code != 200:
                 return {"success": False, "message": f"HTTP {r.status_code}"}
@@ -116,7 +148,7 @@ class CloudSyncLite:
                     user["days_remaining"] = 0
             return {"success": True, "user": user, "token": token}
         except Exception as e:
-            return {"success": False, "message": str(e)}
+            return {"success": False, "message": "Connection error"}
 
     def register_user(self, username: str, password: str, email: str, subscription_type: str = "free") -> dict:
         try:
