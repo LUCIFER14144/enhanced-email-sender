@@ -1,13 +1,62 @@
-DOWNLOAD wkhtmltopdf installer and place it here!
+═══════════════════════════════════════════════════════════════
+  WKHTMLTOPDF DOWNLOAD INSTRUCTIONS
+═══════════════════════════════════════════════════════════════
 
-Download Link:
-https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkhtmltox-0.12.6-1.msvc2015-win64.exe
+To include wkhtmltopdf in this package, please download and place
+the installer here.
 
-File Name: wkhtmltox-0.12.6-1.msvc2015-win64.exe
-Size: ~31 MB
-
-Alternative Download:
+📥 DOWNLOAD LINK:
+────────────────────────────────────────────────────────────────
 https://wkhtmltopdf.org/downloads.html
-(Select Windows 64-bit version)
 
-After downloading, place the installer in this folder.
+
+📋 REQUIRED VERSION:
+────────────────────────────────────────────────────────────────
+✓ wkhtmltopdf 0.12.6 (with patched qt)
+✓ Windows 64-bit installer
+✓ File name: wkhtmltox-0.12.6-1.msvc2015-win64.exe
+
+
+💾 INSTALLATION STEPS:
+────────────────────────────────────────────────────────────────
+
+1. Download the installer from the link above
+2. Save it to THIS folder (wkhtmltopdf/)
+3. The INSTALL_WKHTMLTOPDF.bat script will find it automatically
+4. Users can then run the batch file for easy installation
+
+
+🔧 ALTERNATIVE (For Package Creators):
+────────────────────────────────────────────────────────────────
+
+If you're creating the distribution package:
+
+1. Download: wkhtmltox-0.12.6-1.msvc2015-win64.exe
+2. Place in: desktop/wkhtmltopdf/
+3. Rebuild the ZIP with the installer included
+4. Users will have offline installation capability
+
+
+📦 ZIP PACKAGE STRUCTURE:
+────────────────────────────────────────────────────────────────
+
+Enhanced-Email-Sender.zip
+├── Enhanced-Email-Sender.exe
+├── INSTALL_WKHTMLTOPDF.bat
+├── SETUP_INSTRUCTIONS.txt
+├── README.md
+├── Elements/
+├── Invoices/
+├── PDF/
+└── wkhtmltopdf/
+    └── wkhtmltox-0.12.6-1.msvc2015-win64.exe  ← Place here
+
+
+═══════════════════════════════════════════════════════════════
+
+Note: Due to file size (≈30MB), wkhtmltopdf installer is not
+      included by default. Download it separately or use the
+      automatic installer batch file which will guide users
+      to download it.
+
+═══════════════════════════════════════════════════════════════

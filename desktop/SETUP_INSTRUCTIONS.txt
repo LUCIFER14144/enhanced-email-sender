@@ -1,62 +1,166 @@
-================================================================================
-    ENHANCED EMAIL SENDER - SETUP INSTRUCTIONS
-================================================================================
+═══════════════════════════════════════════════════════════════
+  ENHANCED EMAIL SENDER - SETUP INSTRUCTIONS
+═══════════════════════════════════════════════════════════════
 
-STEP 1: EXTRACT THE ZIP FILE
------------------------------
-1. Extract all files from Enhanced-Email-Sender.zip to a folder
-   Example: C:\EnhancedEmailSender\
+📦 QUICK START (Recommended)
+────────────────────────────────────────────────────────────────
 
-STEP 2: INSTALL WKHTMLTOPDF (Required for PDF/Image generation)
-----------------------------------------------------------------
-Option A - AUTOMATIC SETUP (Recommended):
-   1. Double-click "INSTALL_WKHTMLTOPDF.bat"
-   2. Wait for installation to complete
-   3. Restart your computer (or close all command prompts)
+1. Run "INSTALL_WKHTMLTOPDF.bat" (Right-click → Run as Administrator)
+   - This will automatically install wkhtmltopdf to your system
+   - Required for best quality PDF and image generation
 
-Option B - MANUAL SETUP:
-   1. Go to the "wkhtmltopdf" folder
-   2. Run the wkhtmltox installer
-   3. Install to default location: C:\Program Files\wkhtmltopdf
-   4. Add to PATH environment variable:
-      - Right-click "This PC" → Properties
-      - Advanced System Settings → Environment Variables
-      - Under "System Variables", find "Path"
-      - Click "Edit" → "New"
-      - Add: C:\Program Files\wkhtmltopdf\bin
-      - Click OK on all windows
-   5. Restart your computer
+2. Double-click "Enhanced-Email-Sender.exe"
+   - The application will launch immediately
+   - No Python or other software needed!
 
-STEP 3: RUN THE APPLICATION
-----------------------------
+3. Login with credentials provided by your administrator
+
+4. Start sending emails!
+
+
+═══════════════════════════════════════════════════════════════
+  DETAILED SETUP (Manual Installation)
+═══════════════════════════════════════════════════════════════
+
+📋 SYSTEM REQUIREMENTS:
+────────────────────────────────────────────────────────────────
+✓ Windows 10 or 11 (64-bit)
+✓ 4GB RAM minimum
+✓ 200MB free disk space
+✓ Internet connection (for cloud sync features)
+
+
+🔧 WKHTMLTOPDF INSTALLATION:
+────────────────────────────────────────────────────────────────
+
+Option A: Automatic (Recommended)
+─────────────────────────────────
+1. Right-click "INSTALL_WKHTMLTOPDF.bat"
+2. Select "Run as Administrator"
+3. Follow the prompts
+4. Restart the application if it's running
+
+Option B: Manual
+────────────────
+1. Navigate to the "wkhtmltopdf" folder
+2. Run the installer inside
+3. During installation, make sure to check "Add to PATH"
+4. Complete the installation
+5. Restart your computer (recommended)
+
+
+📝 WHAT IS WKHTMLTOPDF?
+────────────────────────────────────────────────────────────────
+wkhtmltopdf is a tool that converts HTML to PDF and images with
+high quality. It's used by Enhanced Email Sender for:
+
+✓ Generating professional PDF attachments
+✓ Creating high-quality email previews
+✓ Converting HTML templates to images
+
+Note: The software will work WITHOUT wkhtmltopdf, but with
+reduced quality for PDF/image generation.
+
+
+🚀 RUNNING THE APPLICATION:
+────────────────────────────────────────────────────────────────
+
 1. Double-click "Enhanced-Email-Sender.exe"
-2. Login with your credentials provided by admin
-3. Enjoy!
+2. Wait for the application to load (5-10 seconds first time)
+3. Cloud Login screen will appear
+4. Enter your credentials (provided by admin)
+5. Click "Login" or "Register" (if first time)
 
-================================================================================
-TROUBLESHOOTING
-================================================================================
 
-Problem: "wkhtmltoimage not found" error
-Solution: Make sure wkhtmltopdf is installed and added to PATH
+💡 FIRST TIME SETUP:
+────────────────────────────────────────────────────────────────
+
+After logging in, the application will:
+✓ Automatically download your cloud settings
+✓ Load your recipient lists (if any)
+✓ Show your subscription days remaining
+✓ Enable all cloud sync features
+
+
+🌐 CLOUD FEATURES:
+────────────────────────────────────────────────────────────────
+
+✓ Cloud Login - Secure authentication with the server
+✓ Days Remaining - Shows subscription expiration in header
+✓ Refresh Days - Update subscription status anytime
+✓ Cloud Sync Tab - Save/Load recipients and settings
+✓ Auto Stats - Email sent counts sync to server automatically
+
+
+📂 FOLDER STRUCTURE:
+────────────────────────────────────────────────────────────────
+
+Enhanced-Email-Sender/
+├── Enhanced-Email-Sender.exe    (Main application)
+├── INSTALL_WKHTMLTOPDF.bat      (Auto installer)
+├── SETUP_INSTRUCTIONS.txt       (This file)
+├── README.md                    (Project documentation)
+├── Elements/                    (CSV data for invoices)
+│   ├── charges.csv
+│   ├── number.csv
+│   ├── product.csv
+│   └── quantity.csv
+├── Invoices/                    (Generated invoices)
+├── PDF/                         (Generated PDFs)
+└── wkhtmltopdf/                 (HTML to PDF converter)
+    └── wkhtmltopdf-installer.exe
+
+
+🔐 WINDOWS SECURITY WARNING:
+────────────────────────────────────────────────────────────────
+
+If Windows SmartScreen appears when running the EXE:
+1. Click "More info"
+2. Click "Run anyway"
+3. This is normal for new applications
+
+If your antivirus flags the file:
+1. Add an exception for Enhanced-Email-Sender.exe
+2. This is a false positive (common with PyInstaller apps)
+
+
+⚙️ TROUBLESHOOTING:
+────────────────────────────────────────────────────────────────
 
 Problem: Application won't start
-Solution: Extract from ZIP first, don't run directly from ZIP file
+Solution: 
+  - Make sure you extracted ALL files from the ZIP
+  - Run as Administrator
+  - Check antivirus hasn't quarantined the file
 
-Problem: Windows SmartScreen warning
-Solution: Click "More info" → "Run anyway"
+Problem: "wkhtmltoimage not found" error
+Solution:
+  - Run INSTALL_WKHTMLTOPDF.bat as Administrator
+  - Or manually install from wkhtmltopdf folder
+  - Restart the application
 
-Problem: Cloud features not working
-Solution: Check your internet connection and login credentials
+Problem: Can't login
+Solution:
+  - Check your internet connection
+  - Verify credentials with administrator
+  - Make sure server is online
 
-================================================================================
-SYSTEM REQUIREMENTS
-================================================================================
-- Windows 10/11 (64-bit)
-- 4GB RAM minimum
-- 100MB free disk space
-- Internet connection (for cloud features)
+Problem: Cloud sync not working
+Solution:
+  - Login with valid credentials
+  - Check internet connection
+  - Click "Refresh Days" to reconnect
 
-================================================================================
-For support, contact your administrator
-================================================================================
+
+📧 SUPPORT:
+────────────────────────────────────────────────────────────────
+
+For technical support or issues:
+- Contact your system administrator
+- Check README.md for more information
+- Verify all files are extracted properly
+
+
+═══════════════════════════════════════════════════════════════
+  ENJOY USING ENHANCED EMAIL SENDER!
+═══════════════════════════════════════════════════════════════

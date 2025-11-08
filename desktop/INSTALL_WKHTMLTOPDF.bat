@@ -1,57 +1,75 @@
 @echo off
-echo ============================================================
-echo  Enhanced Email Sender - wkhtmltopdf Setup
-echo ============================================================
-echo.
+REM ═══════════════════════════════════════════════════════════════
+REM   Enhanced Email Sender - wkhtmltopdf Auto Installer
+REM ═══════════════════════════════════════════════════════════════
 
-REM Check if running as administrator
-net session >nul 2>&1
-if %errorLevel% neq 0 (
-    echo ERROR: This script requires Administrator privileges!
-    echo Please right-click and select "Run as Administrator"
+echo.
+echo ═══════════════════════════════════════════════════════════════
+echo   WKHTMLTOPDF INSTALLER
+echo ═══════════════════════════════════════════════════════════════
+echo.
+echo This will install wkhtmltopdf for high-quality PDF/Image generation.
+echo.
+echo Administrator privileges required!
+echo.
+pause
+
+REM Check if wkhtmltopdf folder exists
+if not exist "%~dp0wkhtmltopdf" (
+    echo.
+    echo [ERROR] wkhtmltopdf folder not found!
+    echo Please make sure you extracted all files from the ZIP.
     echo.
     pause
     exit /b 1
 )
 
-echo Checking for wkhtmltopdf installer...
+REM Check for installer in wkhtmltopdf folder
+echo.
+echo [INFO] Searching for wkhtmltopdf installer...
 echo.
 
-REM Check if installer exists
-if exist "wkhtmltopdf\wkhtmltox-0.12.6-1.msvc2015-win64.exe" (
-    echo Found installer: wkhtmltox-0.12.6-1.msvc2015-win64.exe
-    echo Installing...
-    start /wait wkhtmltopdf\wkhtmltox-0.12.6-1.msvc2015-win64.exe
-) else (
-    echo Installer not found in package. Downloading...
-    echo.
-    echo Opening download page...
-    start https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkhtmltox-0.12.6-1.msvc2015-win64.exe
-    echo.
-    echo Please:
-    echo 1. Download the file from the opened browser
-    echo 2. Place it in the wkhtmltopdf folder
-    echo 3. Run this script again
-    echo.
-    echo OR install it directly from the downloaded file
-    pause
-    exit /b 0
+REM Look for the installer
+for %%f in ("%~dp0wkhtmltopdf\*.exe" "%~dp0wkhtmltopdf\*.msi") do (
+    set INSTALLER=%%f
+    goto :found
 )
 
+REM If no installer found, provide download instructions
+echo [WARNING] Installer not found in wkhtmltopdf folder.
 echo.
-echo Adding to PATH environment variable...
+echo Please download wkhtmltopdf from:
+echo https://wkhtmltopdf.org/downloads.html
+echo.
+echo Download: wkhtmltopdf 0.12.6 (with patched qt) - Windows 64-bit
+echo Save to: %~dp0wkhtmltopdf\
+echo Then run this script again.
+echo.
+pause
 
-REM Add to system PATH
-setx /M PATH "%PATH%;C:\Program Files\wkhtmltopdf\bin"
+REM Open download page
+start https://wkhtmltopdf.org/downloads.html
+exit /b 1
+
+:found
+echo [SUCCESS] Found installer: %INSTALLER%
+echo.
+echo Starting installation...
+echo.
+
+REM Run the installer
+start /wait "" "%INSTALLER%" /S
 
 echo.
-echo ============================================================
-echo  Installation Complete!
-echo ============================================================
+echo ═══════════════════════════════════════════════════════════════
+echo   INSTALLATION COMPLETE!
+echo ═══════════════════════════════════════════════════════════════
 echo.
-echo IMPORTANT: Please restart your computer or close all
-echo command prompts for the changes to take effect.
+echo wkhtmltopdf has been installed successfully.
 echo.
-echo You can now run Enhanced-Email-Sender.exe
+echo IMPORTANT: You may need to restart Enhanced Email Sender
+echo            for the changes to take effect.
+echo.
+echo ═══════════════════════════════════════════════════════════════
 echo.
 pause
