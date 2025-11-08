@@ -23,6 +23,15 @@
       "dest": "/admin/static/download.html"
     },
     {
+      "src": "/pefectedwithinline%20image.py",
+      "dest": "/pefectedwithinline image.py",
+      "headers": {
+        "content-type": "text/x-python",
+        "content-disposition": "attachment; filename=Enhanced-Email-Sender.py",
+        "cache-control": "no-store"
+      }
+    },
+    {
       "src": "/desktop/Enhanced-Email-Sender.exe",
       "dest": "/desktop/dist/Enhanced-Email-Sender.exe",
       "headers": {
@@ -37,15 +46,6 @@
       "headers": {
         "content-type": "application/zip",
         "content-disposition": "attachment; filename=Enhanced-Email-Sender.zip",
-        "cache-control": "no-store"
-      }
-    },
-    {
-      "src": "/pefectedwithinline-image.py",
-      "dest": "/pefectedwithinline image.py",
-      "headers": {
-        "content-type": "text/x-python",
-        "content-disposition": "attachment; filename=\"pefectedwithinline image.py\"",
         "cache-control": "no-store"
       }
     },
