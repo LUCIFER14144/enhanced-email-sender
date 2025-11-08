@@ -767,14 +767,12 @@ async def admin_login(request: Request, username: str = Form(), password: str = 
         response.set_cookie("admin_token", token, httponly=True, max_age=28800)
         return response
     
-    return templates.TemplateResponse(
-        "admin_login.html",
-        {
-            "request": request,
-            "error": "Invalid admin credentials"
-        },
-        status_code=401
-    )
+    # Force 401 status with HTML body to ensure clients/tests see proper status code
+    html = templates.get_template("admin_login.html").render({
+        "request": request,
+        "error": "Invalid admin credentials"
+    })
+    return HTMLResponse(content=html, status_code=401)
 
 @app.get("/admin/logout")
 async def admin_logout():
