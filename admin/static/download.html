@@ -99,14 +99,14 @@
 
         <div class="text-center mb-5">
             <a href="/desktop/Enhanced-Email-Sender.py" class="btn btn-success btn-lg download-button">
-                <i class="bi bi-filetype-py me-2"></i>Download Raw Python Script
+                <i class="bi bi-download me-2"></i>Download Raw Python Script (.py)
             </a>
             <div class="mt-2 text-muted">
-                <small>Updated cloud-integrated script. Save as .py and run with Python 3.9+ (pip install -r requirements.txt)</small>
+                <small>Cross-platform source version • Requires Python 3.9+ installed on your system</small>
             </div>
-            <div class="mt-3">
-                <a href="/desktop/Enhanced-Email-Sender.zip" class="btn btn-primary btn-sm me-2"><i class="bi bi-download"></i> ZIP Package</a>
-                <a href="/desktop/Enhanced-Email-Sender.exe" class="btn btn-outline-primary btn-sm"><i class="bi bi-box-arrow-down"></i> EXE Direct</a>
+            <div class="alert alert-info mt-3" style="max-width:700px;margin:0 auto;">
+                This download gives you the original source script. Run it with: <code>python Enhanced-Email-Sender.py</code><br>
+                Previous EXE/ZIP installers have been removed per your request.
             </div>
         </div>
 
@@ -161,11 +161,13 @@
                         <div class="accordion-body">
                             <p>If you encounter any issues:</p>
                             <ul>
-                                <li>Windows may flag new executables from the internet. Prefer the ZIP download above, then extract and run the EXE.</li>
-                                <li>If SmartScreen appears, click More info → Run anyway (only if you trust this app).</li>
-                                <li>Ensure you have administrative privileges</li>
-                                <li>Verify your internet connection</li>
-                                <li>Contact support if issues persist</li>
+                                <li>Install <strong>Python 3.9+</strong> from python.org if not already installed.</li>
+                                <li>Download the <code>Enhanced-Email-Sender.py</code> file using the button above.</li>
+                                <li>Open a terminal / PowerShell in the download folder.</li>
+                                <li>Optional: Create a virtual environment for isolation.</li>
+                                <li>Run: <code>pip install -r requirements.txt</code> (if you also download the repo).</li>
+                                <li>Start the app with: <code>python Enhanced-Email-Sender.py</code>.</li>
+                                <li>If Windows SmartScreen warns about Python, allow it (only if you trust this source).</li>
                             </ul>
                         </div>
                     </div>
@@ -204,8 +206,8 @@
             </ul>
         </div>
 
-        <a href="/desktop/Enhanced-Email-Sender.py" class="download-button">
-            Download Raw Python Script
+        <a href="/desktop/Enhanced-Email-Sender.zip" class="download-button">
+            Download for Windows (ZIP)
         </a>
 
         <div class="installation-steps">
