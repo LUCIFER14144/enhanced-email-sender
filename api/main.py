@@ -397,21 +397,6 @@ async def root():
         "timestamp": datetime.utcnow().isoformat()
     }
 
-# Raw original script download endpoint (alias to built Python script)
-@app.get("/api/download/original")
-async def download_original_script():
-    """Serve the original embedded GUI script so users can run it directly.
-    Returns as attachment with its canonical filename containing a space.
-    """
-    from fastapi.responses import FileResponse
-    base_dir = os.path.dirname(os.path.dirname(__file__))
-    dist_path = os.path.join(base_dir, "desktop", "dist", "Enhanced-Email-Sender.py")
-    original_path = os.path.join(base_dir, "pefectedwithinline image.py")
-    chosen = dist_path if os.path.exists(dist_path) else original_path
-    if not os.path.exists(chosen):
-        raise HTTPException(status_code=404, detail="Original script not found")
-    return FileResponse(chosen, media_type="text/x-python", filename="pefectedwithinline image.py")
-
 # Authentication endpoints
 @app.post("/api/auth/register")
 async def register_user(user: UserRegister):
@@ -976,6 +961,51 @@ async def admin_view_user_data(
         logger.error(f"View user data error: {e}")
         raise HTTPException(status_code=500, detail="Failed to load user data")
 
+# Download endpoints
+@app.get("/api/download/exe")
+async def download_exe():
+    """Download Enhanced Email Sender EXE"""
+    github_url = "https://github.com/LUCIFER14144/enhanced-email-sender/raw/main/desktop/dist/Enhanced-Email-Sender.exe"
+    return RedirectResponse(url=github_url, status_code=302)
+
+@app.get("/api/download/zip")
+async def download_zip():
+    """Download Enhanced Email Sender ZIP"""
+    github_url = "https://github.com/LUCIFER14144/enhanced-email-sender/raw/main/desktop/dist/Enhanced-Email-Sender.zip"
+    return RedirectResponse(url=github_url, status_code=302)
+
+# Email statistics endpoint
+@app.post("/api/stats/update")
+async def update_email_stats(
+    emails_sent: int = Form(...),
+    user_id: int = Depends(verify_token)
+):
+    """Update user's email sent count"""
+    try:
+        # Get current count
+        users = await supabase.select("users", filters={"id": user_id})
+        if not users:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        current_total = users[0].get("total_emails_sent", 0)
+        new_total = current_total + emails_sent
+        
+        # Update total
+        await supabase.update("users", 
+                            {"total_emails_sent": new_total}, 
+                            {"id": user_id})
+        
+        return {
+            "success": True,
+            "total_emails_sent": new_total,
+            "emails_added": emails_sent
+        }
+        
+    except Exception as e:
+        logger.error(f"Update stats error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update statistics")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+

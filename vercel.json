@@ -22,20 +22,6 @@
       "dest": "/admin/static/download.html"
     },
     {
-      "src": "/desktop/Enhanced-Email-Sender.exe",
-      "status": 302,
-      "headers": {
-        "Location": "https://github.com/LUCIFER14144/enhanced-email-sender/raw/main/desktop/dist/Enhanced-Email-Sender.exe"
-      }
-    },
-    {
-      "src": "/desktop/Enhanced-Email-Sender.zip",
-      "status": 302,
-      "headers": {
-        "Location": "https://github.com/LUCIFER14144/enhanced-email-sender/raw/main/desktop/dist/Enhanced-Email-Sender.zip"
-      }
-    },
-    {
       "src": "/admin",
       "dest": "/api/main.py"
     },
