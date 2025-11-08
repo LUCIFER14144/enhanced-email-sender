@@ -3,6 +3,7 @@
 # All original script2.py functionality preserved (spintax, themes, 13-digit IDs, etc.)
 
 import os
+import sys
 import re
 import csv
 import random
@@ -56,6 +57,49 @@ import requests
 
 # --- Expiration Date Check ---
 from datetime import datetime
+
+# --- Get User Data Directory ---
+def get_user_data_dir():
+    """Get a writable directory for user data (Elements, PDF, Invoices folders)"""
+    if getattr(sys, 'frozen', False):
+        # Running as compiled executable
+        app_dir = os.path.join(os.path.expanduser('~'), 'EnhancedEmailSender')
+    else:
+        # Running as script
+        app_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    # Create directory if it doesn't exist
+    if not os.path.exists(app_dir):
+        try:
+            os.makedirs(app_dir)
+        except Exception:
+            # Fallback to temp directory if user home is not writable
+            app_dir = os.path.join(tempfile.gettempdir(), 'EnhancedEmailSender')
+            os.makedirs(app_dir, exist_ok=True)
+    
+    return app_dir
+
+# Global data directory
+USER_DATA_DIR = get_user_data_dir()
+
+# Helper functions for directory paths
+def get_invoices_dir():
+    """Get Invoices directory path"""
+    inv_dir = os.path.join(USER_DATA_DIR, 'Invoices')
+    if not os.path.exists(inv_dir):
+        os.makedirs(inv_dir)
+    return inv_dir
+
+def get_pdf_dir():
+    """Get PDF directory path"""
+    pdf_dir = os.path.join(USER_DATA_DIR, 'PDF')
+    if not os.path.exists(pdf_dir):
+        os.makedirs(pdf_dir)
+    return pdf_dir
+
+def get_elements_file(filename):
+    """Get full path to Elements file"""
+    return os.path.join(USER_DATA_DIR, 'Elements', filename)
 
 # Default expiration date (YYYY-MM-DD). Update as needed; set to a distant future date to avoid accidental expiration.
 EXPIRATION_DATE = "2099-12-31"
@@ -289,31 +333,37 @@ def center_window(win, width=None, height=None):
 
 def on_login_success_and_start(login_root):
     """Called after successful login. Closes the login and starts the main application."""
-    try:
-        login_root.destroy()
-    except Exception:
-        try:
-            login_root.withdraw()
-        except Exception:
-            pass
-    # Start the application's main entrypoint if present
+    # Start the application's main entrypoint if present BEFORE destroying login window
     try:
         if 'main' in globals():
+            login_root.destroy()
             main()
         elif 'app_main' in globals():
+            login_root.destroy()
             app_main()
         else:
+            # No main found - just print and close
+            print("Login successful. No main() or app_main() found.")
             try:
-                from tkinter import messagebox
-                messagebox.showinfo("Info", "Login successful. No main() found to start.")
+                login_root.destroy()
             except Exception:
-                print("Login successful. No main() or app_main() found.")
+                pass
     except Exception as e:
+        # Close login window first
         try:
-            from tkinter import messagebox
-            messagebox.showerror("Startup Error", f"Failed to start application:\\n{e}")
+            login_root.destroy()
         except Exception:
-            print("Startup Error:", e)
+            pass
+        # Then show error in a new window
+        try:
+            import tkinter as tk
+            from tkinter import messagebox
+            error_root = tk.Tk()
+            error_root.withdraw()
+            messagebox.showerror("Startup Error", f"Failed to start application:\n{e}")
+            error_root.destroy()
+        except Exception:
+            print(f"Startup Error: {e}")
 
 def create_warm_login_modal():
     """Create a warm-styled login window and block until successful login."""
@@ -1008,31 +1058,34 @@ class EnhancedEmailSenderGUI:
         
     def create_sample_data_files(self):
         """Create sample data files if they don't exist"""
-        if not os.path.exists('Elements'):
-            os.makedirs('Elements')
+        elements_dir = os.path.join(USER_DATA_DIR, 'Elements')
+        if not os.path.exists(elements_dir):
+            os.makedirs(elements_dir)
         
         sample_data = {
-            'Elements/product.csv': [
+            'product.csv': [
                 'Premium Software License', 'Professional Service Package', 'Digital Marketing Suite',
                 'Cloud Storage Plan', 'Security Software', 'Design Templates Bundle'
             ],
-            'Elements/charges.csv': [
+            'charges.csv': [
                 '$99.99', '$199.99', '$299.99', '$399.99', '$149.99', '$249.99'
             ],
-            'Elements/quantity.csv': ['1', '2', '3', '1', '1', '2'],
-            'Elements/number.csv': [str(random.randint(100000, 999999)) for _ in range(20)]
+            'quantity.csv': ['1', '2', '3', '1', '1', '2'],
+            'number.csv': [str(random.randint(100000, 999999)) for _ in range(20)]
         }
         
         for filename, data in sample_data.items():
-            if not os.path.exists(filename):
-                with open(filename, 'w') as f:
+            filepath = os.path.join(elements_dir, filename)
+            if not os.path.exists(filepath):
+                with open(filepath, 'w') as f:
                     for item in data:
                         f.write(f"{item}\\n")
         
         # Create directories
         for directory in ['PDF', 'Invoices']:
-            if not os.path.exists(directory):
-                os.makedirs(directory)
+            dir_path = os.path.join(USER_DATA_DIR, directory)
+            if not os.path.exists(dir_path):
+                os.makedirs(dir_path)
         
     
     # CONTROL METHODS (ADDED FROM SCRIPT1)
@@ -2539,11 +2592,11 @@ The recipient sees a beautiful, pixel-perfect image of your HTML design in their
             '$id': self.generate_random_alphanumeric(14),
             '$invcnumber': self.generate_random_alphanumeric(12),
             '$ordernumber': self.generate_random_alphanumeric(14),
-            '$product': self.fetch_random_line('Elements/product.csv'),
-            '$charges': self.fetch_random_line('Elements/charges.csv'),
-            '$quantity': self.fetch_random_line('Elements/quantity.csv'),
-            '$amount': self.fetch_random_line('Elements/charges.csv'),
-            '$number': self.fetch_random_line('Elements/number.csv'),
+            '$product': self.fetch_random_line(os.path.join(USER_DATA_DIR, 'Elements', 'product.csv')),
+            '$charges': self.fetch_random_line(os.path.join(USER_DATA_DIR, 'Elements', 'charges.csv')),
+            '$quantity': self.fetch_random_line(os.path.join(USER_DATA_DIR, 'Elements', 'quantity.csv')),
+            '$amount': self.fetch_random_line(os.path.join(USER_DATA_DIR, 'Elements', 'charges.csv')),
+            '$number': self.fetch_random_line(os.path.join(USER_DATA_DIR, 'Elements', 'number.csv')),
             '$unique13digit': self.generate_unique_13_digit(),
             # Enhanced USA address placeholders
             '$address': address_data['full_address'],
@@ -2796,10 +2849,7 @@ The recipient sees a beautiful, pixel-perfect image of your HTML design in their
                     image_format = self.image_format_var.get().lower() if hasattr(self, 'image_format_var') else 'png'
                     # Use exact same format as PDF: {$invcnumber}_{7-digit-random}.{extension}
                     image_filename = f"{placeholders.get('$invcnumber', 'doc')}_{random_suffix}.{image_format}"
-                    image_path = f"Invoices/{image_filename}"
-                    
-                    if not os.path.exists('Invoices'):
-                        os.makedirs('Invoices')
+                    image_path = os.path.join(get_invoices_dir(), image_filename)
                     
                     # Convert HTML to image
                     width = int(self.width_var.get()) if hasattr(self, 'width_var') else 800
@@ -2831,11 +2881,7 @@ The recipient sees a beautiful, pixel-perfect image of your HTML design in their
                     # Generate unique PDF name for this recipient
                     random_suffix = str(random.randint(1000000, 9999999))
                     pdf_name_format = self.pdf_name_format if hasattr(self, 'pdf_name_format') else 'invoice'
-                    pdf_filename = f"Invoices/{placeholders.get('$invcnumber', 'doc')}_{random_suffix}.pdf"
-                    
-                    # Ensure Invoices directory exists
-                    if not os.path.exists('Invoices'):
-                        os.makedirs('Invoices')
+                    pdf_filename = os.path.join(get_invoices_dir(), f"{placeholders.get('$invcnumber', 'doc')}_{random_suffix}.pdf")
                     
                     # Create PDF with placeholders replaced
                     if self.create_pdf_from_html(html_content, pdf_filename, placeholders, recipient):
@@ -2891,10 +2937,7 @@ The recipient sees a beautiful, pixel-perfect image of your HTML design in their
                     image_format = self.image_format_var.get().lower() if hasattr(self, 'image_format_var') else 'png'
                     # Use exact same format as PDF: {$invcnumber}_{7-digit-random}.{extension}
                     image_filename = f"{placeholders.get('$invcnumber', 'doc')}_{random_suffix}.{image_format}"
-                    image_path = f"Invoices/{image_filename}"
-                    
-                    if not os.path.exists('Invoices'):
-                        os.makedirs('Invoices')
+                    image_path = os.path.join(get_invoices_dir(), image_filename)
                     
                     # Convert HTML to image
                     width = int(self.width_var.get()) if hasattr(self, 'width_var') else 800
@@ -2924,10 +2967,7 @@ The recipient sees a beautiful, pixel-perfect image of your HTML design in their
                 html_content = self.html_content.get(1.0, tk.END).strip()
                 if html_content:
                     random_suffix = str(random.randint(1000000, 9999999))
-                    pdf_filename = f"Invoices/{placeholders.get('$invcnumber', 'doc')}_{random_suffix}.pdf"
-                    
-                    if not os.path.exists('Invoices'):
-                        os.makedirs('Invoices')
+                    pdf_filename = os.path.join(get_invoices_dir(), f"{placeholders.get('$invcnumber', 'doc')}_{random_suffix}.pdf")
                     
                     if self.create_pdf_from_html(html_content, pdf_filename, placeholders, recipient):
                         final_attachments.append(pdf_filename)
@@ -4540,10 +4580,7 @@ SENDER TAG IS NOW FIXED - Shows actual names instead of spintax patterns!"""
                         
                         # Generate PDF filename
                         random_suffix = str(random.randint(1000000, 9999999))
-                        pdf_filename = f"Invoices/{placeholders.get('$invcnumber', 'doc')}_{random_suffix}.pdf"
-
-                        if not os.path.exists('Invoices'):
-                            os.makedirs('Invoices')
+                        pdf_filename = os.path.join(get_invoices_dir(), f"{placeholders.get('$invcnumber', 'doc')}_{random_suffix}.pdf")
 
                         # Default CSS styling for PDF
                         default_css = '''
