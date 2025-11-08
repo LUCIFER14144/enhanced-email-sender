@@ -52,12 +52,184 @@ import smtplib
 import tempfile
 from faker import Faker
 import pycountry
+import requests
 
 # --- Expiration Date Check ---
 from datetime import datetime
 
 # Default expiration date (YYYY-MM-DD). Update as needed; set to a distant future date to avoid accidental expiration.
 EXPIRATION_DATE = "2099-12-31"
+
+# --- Cloud Login (embedded) ---
+# Toggle to enable/disable cloud authentication modal on startup
+ENABLE_CLOUD_LOGIN = True
+# Base URL of your deployed backend
+CLOUD_API_URL = "https://perfected-vercelblasting.vercel.app"
+
+class CloudSyncLite:
+    """Minimal embedded cloud client for login/registration.
+    Keeps original script intact; used only to authenticate against the cloud backend.
+    """
+    def __init__(self, api_base_url: str = None):
+        self.api_base_url = api_base_url or CLOUD_API_URL
+        self.token = None
+        self.user = None
+
+    def test_connection(self) -> bool:
+        try:
+            r = requests.get(f"{self.api_base_url}/", timeout=6)
+            if r.status_code == 200:
+                data = r.json()
+                return isinstance(data, dict) and data.get("status") == "active"
+            return False
+        except Exception:
+            return False
+
+    def login(self, username: str, password: str) -> dict:
+        try:
+            r = requests.post(
+                f"{self.api_base_url}/api/auth/login",
+                json={"username": username, "password": password},
+                timeout=12
+            )
+            if r.status_code != 200:
+                return {"success": False, "message": f"HTTP {r.status_code}"}
+            data = r.json()
+            # Accept success True or message contains 'login'
+            ok = data.get("success") is True or ("message" in data and "login" in str(data["message"]).lower())
+            if not ok:
+                return {"success": False, "message": data.get("message", "Login failed")}
+            token = data.get("token")
+            user = data.get("user") or {}
+            if token:
+                self.token = token
+                self.user = user
+            # Add days_remaining if possible
+            expires_at = (user or {}).get("expires_at")
+            if expires_at and "days_remaining" not in user:
+                try:
+                    from datetime import datetime as _dt
+                    dt_exp = _dt.fromisoformat(expires_at.replace("Z", ""))
+                    delta = dt_exp - _dt.utcnow()
+                    user["days_remaining"] = max(0, delta.days)
+                except Exception:
+                    user["days_remaining"] = 0
+            return {"success": True, "user": user, "token": token}
+        except Exception as e:
+            return {"success": False, "message": str(e)}
+
+    def register_user(self, username: str, password: str, email: str, subscription_type: str = "free") -> dict:
+        try:
+            r = requests.post(
+                f"{self.api_base_url}/api/auth/register",
+                json={
+                    "username": username,
+                    "password": password,
+                    "email": email,
+                    "subscription_type": subscription_type,
+                },
+                timeout=15
+            )
+            if r.status_code == 200:
+                return r.json()
+            return {"success": False, "message": f"HTTP {r.status_code}"}
+        except Exception as e:
+            return {"success": False, "message": str(e)}
+    # --- Recipients & Settings Sync (minimal) ---
+    def _auth_headers(self):
+        return {"Authorization": f"Bearer {self.token}"} if self.token else {}
+
+    def save_recipients_to_cloud(self, list_name: str, recipients: list) -> bool:
+        if not self.token:
+            return False
+        try:
+            r = requests.post(
+                f"{self.api_base_url}/api/recipients/save",
+                json={"list_name": list_name, "recipients": recipients},
+                headers=self._auth_headers(),
+                timeout=20
+            )
+            return r.status_code == 200 and r.json().get('success', True)
+        except Exception:
+            return False
+
+    def load_recipients_from_cloud(self):
+        if not self.token:
+            return []
+        try:
+            r = requests.get(
+                f"{self.api_base_url}/api/recipients/load",
+                headers=self._auth_headers(),
+                timeout=20
+            )
+            if r.status_code == 200:
+                data = r.json()
+                if data.get('success'):
+                    return data.get('lists', [])
+            return []
+        except Exception:
+            return []
+
+    def save_settings_to_cloud(self, settings: dict) -> bool:
+        if not self.token:
+            return False
+        try:
+            r = requests.post(
+                f"{self.api_base_url}/api/settings/save",
+                json=settings,
+                headers=self._auth_headers(),
+                timeout=15
+            )
+            return r.status_code == 200
+        except Exception:
+            return False
+
+    def load_settings_from_cloud(self) -> dict:
+        if not self.token:
+            return {}
+        try:
+            r = requests.get(
+                f"{self.api_base_url}/api/settings/load",
+                headers=self._auth_headers(),
+                timeout=15
+            )
+            if r.status_code == 200:
+                data = r.json()
+                if data.get('success'):
+                    return data.get('settings', {})
+            return {}
+        except Exception:
+            return {}
+
+    def get_user_info(self) -> dict:
+        """Fetch current user info from cloud (expects token)."""
+        if not self.token:
+            return {}
+        try:
+            r = requests.get(
+                f"{self.api_base_url}/api/user/info",
+                headers=self._auth_headers(),
+                timeout=10
+            )
+            if r.status_code == 200:
+                return r.json()
+            return {}
+        except Exception:
+            return {}
+
+    def update_email_stats(self, sent_count: int) -> bool:
+        if not self.token:
+            return False
+        try:
+            r = requests.post(
+                f"{self.api_base_url}/api/stats/update",
+                json={"emails_sent": int(max(0, sent_count))},
+                headers=self._auth_headers(),
+                timeout=10
+            )
+            return r.status_code == 200
+        except Exception:
+            return False
 
 
 # --- LOGIN (added) ---
@@ -218,6 +390,82 @@ def create_warm_login_modal():
 
     root.bind("<Return>", try_login)
     username_entry.focus_set()
+
+    center_window(root, width=440, height=280)
+    root.resizable(False, False)
+    root.mainloop()
+
+def create_cloud_login_modal():
+    """Cloud login modal that authenticates against the backend.
+    Falls back to warm login if server is unreachable.
+    """
+    import tkinter as tk
+    from tkinter import ttk, messagebox
+    sync = CloudSyncLite(CLOUD_API_URL)
+
+    # Fallback immediately if no connection
+    if not sync.test_connection():
+        # Use original flow
+        return create_warm_login_modal()
+
+    root = tk.Tk()
+    root.title("Cloud Login — Enhanced Email Sender")
+    style = ttk.Style(root)
+    try:
+        style.theme_use('clam')
+    except Exception:
+        pass
+
+    frm = ttk.Frame(root, padding=20)
+    frm.pack(fill=tk.BOTH, expand=True)
+    ttk.Label(frm, text="Sign in to Cloud", font=('Segoe UI', 14, 'bold')).grid(row=0, column=0, columnspan=2, pady=(0,10))
+    ttk.Label(frm, text="Username").grid(row=1, column=0, sticky=tk.W)
+    u_var = tk.StringVar(); u_ent = ttk.Entry(frm, textvariable=u_var, width=32); u_ent.grid(row=1, column=1)
+    ttk.Label(frm, text="Password").grid(row=2, column=0, sticky=tk.W, pady=(6,0))
+    p_var = tk.StringVar(); p_ent = ttk.Entry(frm, textvariable=p_var, show='*', width=32); p_ent.grid(row=2, column=1, pady=(6,0))
+    status = tk.StringVar(value="Ready")
+    ttk.Label(frm, textvariable=status, foreground='blue').grid(row=3, column=0, columnspan=2, pady=(8,0))
+
+    btns = ttk.Frame(frm); btns.grid(row=4, column=0, columnspan=2, pady=(12,0))
+
+    def do_login(event=None):
+        username = u_var.get().strip(); password = p_var.get().strip()
+        if not username or not password:
+            messagebox.showerror("Error", "Please enter username and password")
+            return
+        status.set("Connecting...")
+        root.update()
+        res = sync.login(username, password)
+        if res.get('success'):
+            status.set("Success")
+            # Persist session & user globally for main GUI
+            globals()['CLOUD_SESSION'] = sync
+            try:
+                on_login_success_and_start(root)
+            except Exception:
+                root.destroy(); main()
+        else:
+            messagebox.showerror("Login Failed", res.get('message', 'Invalid credentials'))
+
+    def do_register():
+        username = u_var.get().strip(); password = p_var.get().strip()
+        email = tk.simpledialog.askstring("Email (optional)", "Enter your email:") or ""
+        status.set("Registering..."); root.update()
+        res = sync.register_user(username, password, email, subscription_type="free")
+        if res.get('success'):
+            messagebox.showinfo("Registered", "Account created. You can now log in.")
+        else:
+            messagebox.showerror("Registration Failed", res.get('message', 'Failed'))
+
+    ttk.Button(btns, text="Sign In", command=do_login).pack(side=tk.LEFT, padx=(0,8))
+    ttk.Button(btns, text="Register", command=do_register).pack(side=tk.LEFT)
+    ttk.Button(btns, text="Use Offline Login", command=lambda: (root.destroy(), create_warm_login_modal())).pack(side=tk.LEFT, padx=(8,0))
+
+    u_ent.focus_set()
+    center_window(root, width=420, height=220)
+    root.resizable(False, False)
+    root.bind('<Return>', do_login)
+    root.mainloop()
 
     center_window(root, width=440, height=280)
     root.resizable(False, False)
@@ -586,9 +834,28 @@ def optimize_image_for_email(image_path, max_width=800):
 class EnhancedEmailSenderGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("ENHANCED Email Sender - 90%+ Inbox + All Features")
+        # Title shows username when cloud-connected
+        base_title = "ENHANCED Email Sender - 90%+ Inbox + All Features"
+        self.root.title(base_title)
         self.root.geometry("1400x900")
         self.root.configure(bg='#f0f0f0')
+        # Cloud session (if user logged in via cloud modal)
+        self.cloud = globals().get('CLOUD_SESSION', None)
+        self.cloud_days_remaining = None
+        if self.cloud and getattr(self.cloud, 'user', None):
+            try:
+                self.cloud_days_remaining = int(self.cloud.user.get('days_remaining', 0))
+            except Exception:
+                self.cloud_days_remaining = None
+            # Update window title with username
+            try:
+                _u = self.cloud.user.get('username') or self.cloud.user.get('email') or "user"
+                if self.cloud_days_remaining is not None:
+                    self.root.title(f"{base_title} — {_u} ({self.cloud_days_remaining} days left)")
+                else:
+                    self.root.title(f"{base_title} — {_u}")
+            except Exception:
+                pass
         
         # Initialize Faker for name generation
         self.faker = Faker()
@@ -695,6 +962,13 @@ class EnhancedEmailSenderGUI:
         self.load_settings()
         self.create_sample_data_files()
         self.apply_theme()
+
+        # Auto-load from cloud if available
+        try:
+            if self.cloud and getattr(self.cloud, 'token', None):
+                self.cloud_autoload()
+        except Exception:
+            pass
         
         # Show PDF conversion status on startup
         self.check_pdf_libraries()
@@ -810,19 +1084,37 @@ class EnhancedEmailSenderGUI:
         stats_frame.grid(row=0, column=1, sticky=tk.E)
         
         ttk.Button(stats_frame, text="🎨 Theme", command=self.change_theme).grid(row=0, column=0, padx=(0, 10))
-        
-        ttk.Label(stats_frame, text="Inbox Rate:").grid(row=0, column=1, padx=(0, 5))
-        self.inbox_rate_label = ttk.Label(stats_frame, text=f"{self.stats['inbox_rate']}%", 
-                                         foreground='green', font=('Arial', 10, 'bold'))
-        self.inbox_rate_label.grid(row=0, column=2, padx=(0, 20))
-        
-        ttk.Label(stats_frame, text="APIs:").grid(row=0, column=3, padx=(0, 5))
+        # Refresh Days button (when cloud is available)
+        if self.cloud and getattr(self.cloud, 'token', None):
+            ttk.Button(stats_frame, text="🔄 Refresh Days", command=self.refresh_days_from_cloud).grid(row=0, column=1, padx=(0, 10))
+
+        ttk.Label(stats_frame, text="Inbox Rate:").grid(row=0, column=2, padx=(0, 5))
+        self.inbox_rate_label = ttk.Label(
+            stats_frame,
+            text=f"{self.stats['inbox_rate']}%",
+            foreground='green',
+            font=('Arial', 10, 'bold')
+        )
+        self.inbox_rate_label.grid(row=0, column=3, padx=(0, 20))
+
+        ttk.Label(stats_frame, text="APIs:").grid(row=0, column=4, padx=(0, 5))
         self.api_count_label = ttk.Label(stats_frame, text=str(len(self.gmail_credentials)))
-        self.api_count_label.grid(row=0, column=4, padx=(0, 20))
-        
-        ttk.Label(stats_frame, text="Sent:").grid(row=0, column=5, padx=(0, 5))
+        self.api_count_label.grid(row=0, column=5, padx=(0, 20))
+
+        ttk.Label(stats_frame, text="Sent:").grid(row=0, column=6, padx=(0, 5))
         self.today_sent_label = ttk.Label(stats_frame, text=str(self.stats['total_sent']))
-        self.today_sent_label.grid(row=0, column=6)
+        self.today_sent_label.grid(row=0, column=7)
+
+        # Cloud subscription days remaining (if available)
+        if getattr(self, 'cloud_days_remaining', None) is not None:
+            ttk.Label(stats_frame, text="Days Left:").grid(row=0, column=8, padx=(20, 5))
+            self.days_left_label = ttk.Label(
+                stats_frame,
+                text=f"{self.cloud_days_remaining}",
+                foreground=('red' if self.cloud_days_remaining <= 0 else ('orange' if self.cloud_days_remaining <= 7 else 'green')),
+                font=('Arial', 10, 'bold')
+            )
+            self.days_left_label.grid(row=0, column=9)
         
         # Create notebook for tabs
         self.notebook = ttk.Notebook(main_frame)
@@ -836,6 +1128,204 @@ class EnhancedEmailSenderGUI:
         self.create_inbox_tips_tab()  # NEW - 90% inbox tips
         self.create_settings_tab()
         self.create_image_options_tab()  # NEW - Image options
+        # Cloud Sync tab (only if cloud session present)
+        if self.cloud and getattr(self.cloud, 'token', None):
+            self.create_cloud_sync_tab()
+        else:
+            # Still add a disabled tab to guide users
+            try:
+                self.create_cloud_sync_tab(disabled=True)
+            except Exception:
+                pass
+
+    def create_cloud_sync_tab(self, disabled: bool = False):
+        """Cloud Sync tab for recipients and settings.
+        If disabled=True, shows guidance and disabled actions.
+        """
+        tab = ttk.Frame(self.notebook, padding="10")
+        self.notebook.add(tab, text="☁️ Cloud Sync")
+
+        info = ttk.LabelFrame(tab, text="Status", padding=10)
+        info.grid(row=0, column=0, columnspan=2, sticky=(tk.W, tk.E))
+        status_text = "Connected" if (self.cloud and self.cloud.token) else "Not connected"
+        ttk.Label(info, text=f"Cloud: {status_text}").grid(row=0, column=0, sticky=tk.W)
+        if getattr(self, 'cloud_days_remaining', None) is not None:
+            ttk.Label(info, text=f"Days remaining: {self.cloud_days_remaining}").grid(row=0, column=1, sticky=tk.W, padx=(20,0))
+
+        # Recipients sync
+        rec_frame = ttk.LabelFrame(tab, text="Recipients Lists", padding=10)
+        rec_frame.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N))
+        ttk.Button(rec_frame, text="⬆️ Save Current Recipients", command=self.cloud_save_recipients,
+                   state=('disabled' if disabled else 'normal')).grid(row=0, column=0, pady=(0,5), sticky=tk.W)
+        ttk.Button(rec_frame, text="⬇️ Load Recipients", command=self.cloud_load_recipients,
+                   state=('disabled' if disabled else 'normal')).grid(row=1, column=0, sticky=tk.W)
+        self.cloud_recipients_info = ttk.Label(rec_frame, text="")
+        self.cloud_recipients_info.grid(row=2, column=0, sticky=tk.W, pady=(6,0))
+
+        # Settings sync
+        set_frame = ttk.LabelFrame(tab, text="Settings", padding=10)
+        set_frame.grid(row=1, column=1, sticky=(tk.W, tk.E, tk.N), padx=(10,0))
+        ttk.Button(set_frame, text="⬆️ Save Settings", command=self.cloud_save_settings,
+                   state=('disabled' if disabled else 'normal')).grid(row=0, column=0, pady=(0,5), sticky=tk.W)
+        ttk.Button(set_frame, text="⬇️ Load Settings", command=self.cloud_load_settings,
+                   state=('disabled' if disabled else 'normal')).grid(row=1, column=0, sticky=tk.W)
+        self.cloud_settings_info = ttk.Label(set_frame, text="")
+        self.cloud_settings_info.grid(row=2, column=0, sticky=tk.W, pady=(6,0))
+
+    def cloud_save_recipients(self):
+        try:
+            if not (self.cloud and self.cloud.token):
+                messagebox.showerror("Cloud", "Not logged in to cloud")
+                return
+            # Extract recipients from UI textbox
+            text = self.recipients_text.get("1.0", tk.END).strip()
+            if not text:
+                messagebox.showwarning("Cloud", "No recipients to save")
+                return
+            recipients = [r.strip() for r in re.split(r"[\n,]", text) if r.strip()]
+            # List name prompt
+            name = tk.simpledialog.askstring("List Name", "Enter a name for this list:") or "default"
+            ok = self.cloud.save_recipients_to_cloud(name, recipients)
+            if ok:
+                self.cloud_recipients_info.config(text=f"Saved list '{name}' with {len(recipients)} recipients")
+            else:
+                messagebox.showerror("Cloud", "Failed to save recipients")
+        except Exception as e:
+            messagebox.showerror("Cloud", f"Error: {e}")
+
+    def cloud_load_recipients(self):
+        try:
+            if not (self.cloud and self.cloud.token):
+                messagebox.showerror("Cloud", "Not logged in to cloud")
+                return
+            lists = self.cloud.load_recipients_from_cloud()
+            if not lists:
+                messagebox.showinfo("Cloud", "No lists found in cloud")
+                return
+            # For simplicity, load the first list
+            first = lists[0]
+            items = first.get('recipients') or first.get('items') or []
+            self.recipients_text.delete("1.0", tk.END)
+            self.recipients_text.insert("1.0", "\n".join(items))
+            self.cloud_recipients_info.config(text=f"Loaded list '{first.get('name','list')}' with {len(items)} recipients")
+        except Exception as e:
+            messagebox.showerror("Cloud", f"Error: {e}")
+
+    def cloud_save_settings(self):
+        try:
+            if not (self.cloud and self.cloud.token):
+                messagebox.showerror("Cloud", "Not logged in to cloud")
+                return
+            ok = self.cloud.save_settings_to_cloud(self.settings)
+            if ok:
+                self.cloud_settings_info.config(text="Settings saved to cloud")
+            else:
+                messagebox.showerror("Cloud", "Failed to save settings")
+        except Exception as e:
+            messagebox.showerror("Cloud", f"Error: {e}")
+
+    def cloud_load_settings(self):
+        try:
+            if not (self.cloud and self.cloud.token):
+                messagebox.showerror("Cloud", "Not logged in to cloud")
+                return
+            data = self.cloud.load_settings_from_cloud()
+            if not data:
+                messagebox.showinfo("Cloud", "No settings in cloud")
+                return
+            # Merge into current settings and refresh UI if needed
+            self.settings.update(data)
+            self.apply_theme()
+            self.cloud_settings_info.config(text="Settings loaded from cloud")
+        except Exception as e:
+            messagebox.showerror("Cloud", f"Error: {e}")
+
+    def cloud_autoload(self):
+        """On startup, load settings and first recipients list from cloud.
+        Non-destructive: will not overwrite recipients if already present.
+        """
+        # Load settings
+        data = self.cloud.load_settings_from_cloud() if (self.cloud and self.cloud.token) else {}
+        if data:
+            try:
+                self.settings.update(data)
+                self.apply_theme()
+            except Exception:
+                pass
+        # Load recipients only if box is empty
+        try:
+            current = self.recipients_text.get("1.0", tk.END).strip()
+        except Exception:
+            current = ""
+        if not current:
+            lists = self.cloud.load_recipients_from_cloud() if (self.cloud and self.cloud.token) else []
+            if lists:
+                first = lists[0]
+                items = first.get('recipients') or first.get('items') or []
+                try:
+                    self.recipients_text.delete("1.0", tk.END)
+                    self.recipients_text.insert("1.0", "\n".join(items))
+                except Exception:
+                    pass
+
+    # --- UI hooks for cloud features ---
+    def refresh_days_from_cloud(self):
+        try:
+            if not (self.cloud and self.cloud.token):
+                messagebox.showerror("Cloud", "Not logged in to cloud")
+                return
+            data = self.cloud.get_user_info()
+            user = data.get('user') if isinstance(data, dict) else None
+            if user:
+                self.cloud.user = user
+                self.cloud_days_remaining = int(user.get('days_remaining', 0))
+                if hasattr(self, 'days_left_label'):
+                    self.days_left_label.config(
+                        text=str(self.cloud_days_remaining),
+                        foreground=('red' if self.cloud_days_remaining <= 0 else ('orange' if self.cloud_days_remaining <= 7 else 'green'))
+                    )
+                # Update window title with latest days
+                _u = user.get('username') or user.get('email') or "user"
+                base_title = "ENHANCED Email Sender - 90%+ Inbox + All Features"
+                self.root.title(f"{base_title} — {_u} ({self.cloud_days_remaining} days left)")
+            else:
+                messagebox.showwarning("Cloud", "Could not fetch user info")
+        except Exception as e:
+            messagebox.showerror("Cloud", f"Error: {e}")
+
+    def _cloud_push_sent(self, count: int):
+        try:
+            if self.cloud and getattr(self.cloud, 'token', None) and count and count > 0:
+                # Fire-and-forget; no UI block
+                self.cloud.update_email_stats(int(count))
+        except Exception:
+            pass
+
+    def on_send_clicked(self):
+        before = int(self.stats.get('total_sent', 0)) if isinstance(self.stats, dict) else 0
+        try:
+            self.send_email()  # original method
+        finally:
+            after = int(self.stats.get('total_sent', 0)) if isinstance(self.stats, dict) else before
+            delta = max(0, after - before)
+            self._cloud_push_sent(delta or 1)
+
+    def on_bulk_send_clicked(self):
+        before = int(self.stats.get('total_sent', 0)) if isinstance(self.stats, dict) else 0
+        try:
+            self.bulk_send_email()  # original method
+        finally:
+            after = int(self.stats.get('total_sent', 0)) if isinstance(self.stats, dict) else before
+            delta = max(0, after - before)
+            # As a fallback, approximate from recipients box if no delta recorded
+            if delta == 0:
+                try:
+                    text = self.recipients_text.get("1.0", tk.END).strip()
+                    if text:
+                        delta = len([r for r in re.split(r"[\n,]", text) if r.strip()])
+                except Exception:
+                    pass
+            self._cloud_push_sent(delta)
         
     def create_compose_tab(self):
         """Create email composition tab - ENHANCED"""
@@ -940,8 +1430,8 @@ class EnhancedEmailSenderGUI:
 
         ttk.Button(send_frame, text="🔍 Preview", command=self.preview_email).pack(side=tk.LEFT, padx=(0, 10))
         ttk.Button(send_frame, text="🧪 Test Email", command=self.test_email).pack(side=tk.LEFT, padx=(0, 10))
-        ttk.Button(send_frame, text="📤 Send Email", command=self.send_email, style='Accent.TButton').pack(side=tk.LEFT, padx=(0, 10))
-        ttk.Button(send_frame, text="📧 Bulk Send", command=self.bulk_send_email, style='Accent.TButton').pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(send_frame, text="📤 Send Email", command=self.on_send_clicked, style='Accent.TButton').pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(send_frame, text="📧 Bulk Send", command=self.on_bulk_send_clicked, style='Accent.TButton').pack(side=tk.LEFT, padx=(0, 10))
 
         # CONTROL BUTTONS
         self.pause_button = ttk.Button(send_frame, text="⏸️ PAUSE", command=self.pause_bulk_sending, state='disabled')
@@ -4299,8 +4789,10 @@ def main():
 
 if __name__ == "__main__":
     try:
-        # Prefer the warm login modal if available
-        if 'create_warm_login_modal' in globals() and callable(globals().get('create_warm_login_modal')):
+        # Prefer cloud login when enabled; fall back to warm login
+        if 'ENABLE_CLOUD_LOGIN' in globals() and ENABLE_CLOUD_LOGIN and 'create_cloud_login_modal' in globals():
+            create_cloud_login_modal()
+        elif 'create_warm_login_modal' in globals() and callable(globals().get('create_warm_login_modal')):
             create_warm_login_modal()
         # Only call show_login if it actually exists and is callable to avoid NameError
         elif 'show_login' in globals() and callable(globals().get('show_login')):

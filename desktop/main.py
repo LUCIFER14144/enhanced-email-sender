@@ -18,6 +18,8 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
+import importlib.util
+from importlib.machinery import SourceFileLoader
 
 # Add current directory to path for imports
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -159,13 +161,16 @@ Or register a new account above."""
                 self.user_data = result
                 self.status_var.set("✅ Login successful!")
                 login_window.update()
-                
-                # Close login window and show main app directly
+
+                # Close login window and launch the ORIGINAL (unmodified) GUI script
                 login_window.destroy()
-                self.root.deiconify()  # Show main window
-                self.create_widgets()  # Create main interface
-                self.load_user_data()  # Load user's cloud data
-                
+                try:
+                    # Destroy placeholder root to avoid multiple Tk instances
+                    self.root.destroy()
+                except Exception:
+                    pass
+                self.launch_original_app()
+                return
             else:
                 self.status_var.set("❌ Login failed")
                 messagebox.showerror("Login Failed", result.get("message", "Invalid credentials"))
@@ -231,6 +236,39 @@ Or register a new account above."""
                     
         except Exception as e:
             logger.error(f"Error loading user data: {e}")
+
+    def launch_original_app(self):
+        """Dynamically load and launch the ORIGINAL full GUI script without modifying it."""
+        try:
+            # Path to original script (with space in filename) located at project root
+            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            original_filename = "pefectedwithinline image.py"  # Preserve original name
+            original_path = os.path.join(project_root, original_filename)
+
+            if not os.path.exists(original_path):
+                messagebox.showerror("Launch Error", f"Original script not found: {original_path}")
+                return
+
+            loader = SourceFileLoader("original_email_sender", original_path)
+            spec = importlib.util.spec_from_loader(loader.name, loader)
+            original_module = importlib.util.module_from_spec(spec)
+            loader.exec_module(original_module)
+
+            # Prefer calling its main() entrypoint if present
+            if hasattr(original_module, "main"):
+                original_module.main()
+            elif hasattr(original_module, "EnhancedEmailSenderGUI"):
+                # Fallback: construct GUI class directly
+                root2 = tk.Tk()
+                original_module.EnhancedEmailSenderGUI(root2)
+                root2.mainloop()
+            else:
+                messagebox.showerror(
+                    "Launch Error",
+                    "Original script loaded but no main() or EnhancedEmailSenderGUI found."
+                )
+        except Exception as e:
+            messagebox.showerror("Launch Error", f"Failed to launch original script:\n{e}")
             
     def on_login_close(self):
         """Handle login window close"""
