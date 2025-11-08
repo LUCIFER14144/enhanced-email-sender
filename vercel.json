@@ -23,11 +23,29 @@
       "dest": "/admin/static/download.html"
     },
     {
-      "src": "/desktop/Enhanced-Email-Sender.py",
+      "src": "/desktop/Enhanced-Email-Sender.exe",
+      "dest": "/desktop/dist/Enhanced-Email-Sender.exe",
+      "headers": {
+        "content-type": "application/octet-stream",
+        "content-disposition": "attachment; filename=Enhanced-Email-Sender.exe",
+        "cache-control": "no-store"
+      }
+    },
+    {
+      "src": "/desktop/Enhanced-Email-Sender.zip",
+      "dest": "/desktop/dist/Enhanced-Email-Sender.zip",
+      "headers": {
+        "content-type": "application/zip",
+        "content-disposition": "attachment; filename=Enhanced-Email-Sender.zip",
+        "cache-control": "no-store"
+      }
+    },
+    {
+      "src": "/desktop/pefectedwithinline%20image.py",
       "dest": "/desktop/dist/Enhanced-Email-Sender.py",
       "headers": {
         "content-type": "text/x-python",
-        "content-disposition": "attachment; filename=Enhanced-Email-Sender.py",
+        "content-disposition": "attachment; filename=pefectedwithinline image.py",
         "cache-control": "no-store"
       }
     },

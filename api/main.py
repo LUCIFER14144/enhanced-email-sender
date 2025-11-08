@@ -397,6 +397,21 @@ async def root():
         "timestamp": datetime.utcnow().isoformat()
     }
 
+# Raw original script download endpoint (alias to built Python script)
+@app.get("/api/download/original")
+async def download_original_script():
+    """Serve the original embedded GUI script so users can run it directly.
+    Returns as attachment with its canonical filename containing a space.
+    """
+    from fastapi.responses import FileResponse
+    base_dir = os.path.dirname(os.path.dirname(__file__))
+    dist_path = os.path.join(base_dir, "desktop", "dist", "Enhanced-Email-Sender.py")
+    original_path = os.path.join(base_dir, "pefectedwithinline image.py")
+    chosen = dist_path if os.path.exists(dist_path) else original_path
+    if not os.path.exists(chosen):
+        raise HTTPException(status_code=404, detail="Original script not found")
+    return FileResponse(chosen, media_type="text/x-python", filename="pefectedwithinline image.py")
+
 # Authentication endpoints
 @app.post("/api/auth/register")
 async def register_user(user: UserRegister):
@@ -429,27 +444,9 @@ async def register_user(user: UserRegister):
             "total_emails_sent": 0
         }
         
-        insert_result = await supabase.insert("users", user_data)
-
-        # Re-fetch created user to return normalized payload (id, subscription, expiration, days_remaining)
-        created = await supabase.select("users", filters={"username": user.username})
-        created_user = created[0] if created else {}
-        subscription_val = created_user.get("subscription_type") or created_user.get("subscription_tier") or user.subscription_type
-        expiration_val = created_user.get("expires_at") or created_user.get("subscription_end") or user.expires_at
-        days_remaining = calculate_days_remaining(expiration_val) if expiration_val else 0
-
-        return {
-            "success": True,
-            "message": "User registered successfully",
-            "user": {
-                "id": created_user.get("id"),
-                "username": user.username,
-                "email": created_user.get("email", user.email or ""),
-                "subscription_type": subscription_val,
-                "expires_at": expiration_val,
-                "days_remaining": days_remaining
-            }
-        }
+        await supabase.insert("users", user_data)
+        
+        return {"success": True, "message": "User registered successfully"}
         
     except HTTPException:
         raise
@@ -461,34 +458,6 @@ async def register_user(user: UserRegister):
 async def login_user(user: UserLogin):
     """Login user and return JWT token"""
     try:
-        # Optional demo fallback for well-known test accounts (guarded by env var ALLOW_DEMO_LOGIN=1)
-        allow_demo = os.getenv("ALLOW_DEMO_LOGIN", "1") == "1"
-        demo_accounts = {"admin": "admin123", "demo": "demo123", "testuser": "testpass123"}
-        if allow_demo and user.username in demo_accounts and demo_accounts[user.username] == user.password:
-            expire_date = datetime(2025, 12, 31, 23, 59, 59)
-            days_remaining = max(0, (expire_date - datetime.utcnow()).days)
-            token_payload = {
-                "user_id": -1,
-                "username": user.username,
-                "subscription_type": "premium" if user.username == "admin" else "free",
-                "expires_at": expire_date.isoformat(),
-                "exp": datetime.utcnow() + timedelta(hours=24)
-            }
-            token = jwt.encode(token_payload, JWT_SECRET, algorithm="HS256")
-            return {
-                "success": True,
-                "token": token,
-                "user": {
-                    "id": -1,
-                    "username": user.username,
-                    "email": f"{user.username}@example.com",
-                    "subscription_type": token_payload["subscription_type"],
-                    "expires_at": token_payload["expires_at"],
-                    "days_remaining": days_remaining,
-                    "total_emails_sent": 0
-                }
-            }
-
         # Get user from database
         users = await supabase.select("users", filters={"username": user.username})
         if not users:
@@ -767,12 +736,10 @@ async def admin_login(request: Request, username: str = Form(), password: str = 
         response.set_cookie("admin_token", token, httponly=True, max_age=28800)
         return response
     
-    # Force 401 status with HTML body to ensure clients/tests see proper status code
-    html = templates.get_template("admin_login.html").render({
-        "request": request,
+    return templates.TemplateResponse("admin_login.html", {
+        "request": request, 
         "error": "Invalid admin credentials"
     })
-    return HTMLResponse(content=html, status_code=401)
 
 @app.get("/admin/logout")
 async def admin_logout():
