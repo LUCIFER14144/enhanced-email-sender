@@ -4,8 +4,7 @@
     { "src": "api/new_admin.py", "use": "@vercel/python" },
     { "src": "api/main.py", "use": "@vercel/python" },
     { "src": "admin/static/**", "use": "@vercel/static" },
-    { "src": "desktop/dist/**", "use": "@vercel/static" },
-    { "src": "pefectedwithinline image.py", "use": "@vercel/static" }
+    { "src": "desktop/dist/**", "use": "@vercel/static" }
   ],
   "routes": [
     {
@@ -42,15 +41,14 @@
       }
     },
     {
-      "src": "/desktop/pefectedwithinline%20image.py",
+      "src": "/pefectedwithinline-image.py",
       "dest": "/pefectedwithinline image.py",
       "headers": {
         "content-type": "text/x-python",
-        "content-disposition": "attachment; filename=pefectedwithinline image.py",
+        "content-disposition": "attachment; filename=\"pefectedwithinline image.py\"",
         "cache-control": "no-store"
       }
     },
-    
     {
       "src": "/admin",
       "dest": "/api/main.py"
