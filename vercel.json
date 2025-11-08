@@ -32,6 +32,15 @@
       }
     },
     {
+      "src": "/desktop/Enhanced-Email-Sender.zip",
+      "dest": "/desktop/dist/Enhanced-Email-Sender.zip",
+      "headers": {
+        "content-type": "application/zip",
+        "content-disposition": "attachment; filename=Enhanced-Email-Sender.zip",
+        "cache-control": "no-store"
+      }
+    },
+    {
       "src": "/admin",
       "dest": "/api/main.py"
     },

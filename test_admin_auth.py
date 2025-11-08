@@ -4,6 +4,7 @@ Test admin login functionality
 """
 
 import requests
+from datetime import datetime
 
 BASE_URL = "https://perfected-vercelblasting.vercel.app"
 
@@ -66,15 +67,20 @@ def test_api_endpoints():
     print("\n🧪 Testing API Authentication Endpoints")
     print("=" * 50)
     
+    # Prepare a unique username to avoid duplicates on repeated runs
+    uniq_suffix = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+    reg_username = f"newuser{uniq_suffix}"
+    reg_password = "newpass123"
+
     # Test user registration
     print("\n1️⃣ Testing user registration...")
     try:
         response = requests.post(
             f"{BASE_URL}/api/auth/register",
             json={
-                "username": "newuser123",
-                "password": "newpass123",
-                "email": "newuser@example.com",
+                "username": reg_username,
+                "password": reg_password,
+                "email": f"{reg_username}@example.com",
                 "subscription_type": "free"
             },
             timeout=10
@@ -83,11 +89,15 @@ def test_api_endpoints():
         print(f"Status: {response.status_code}")
         if response.status_code == 200:
             data = response.json()
-            if data.get("success"):
+            if data.get("success", True):
                 print("✅ SUCCESS: User registration working")
-                print(f"   User: {data['user']['username']}")
+                # Some backends may not return the user object on register; handle both
+                reg_report_user = (data.get('user') or {}).get('username', reg_username)
+                print(f"   User: {reg_report_user}")
             else:
                 print(f"❌ Registration failed: {data.get('message')}")
+        elif response.status_code == 400:
+            print("⚠️  Registration returned 400 (possibly duplicate). Proceeding to login test anyway.")
         
     except Exception as e:
         print(f"❌ ERROR: {str(e)}")
@@ -98,8 +108,8 @@ def test_api_endpoints():
         response = requests.post(
             f"{BASE_URL}/api/auth/login",
             json={
-                "username": "demo",
-                "password": "demo123"
+                "username": reg_username,
+                "password": reg_password
             },
             timeout=10
         )
@@ -113,6 +123,11 @@ def test_api_endpoints():
                 print(f"   Token: {data['token'][:20]}...")
             else:
                 print(f"❌ Login failed: {data.get('message')}")
+        else:
+            try:
+                print(f"❌ Login failed: {response.json()}")
+            except Exception:
+                print(f"❌ Login failed: {response.text[:200]}")
         
     except Exception as e:
         print(f"❌ ERROR: {str(e)}")

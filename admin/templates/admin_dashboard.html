@@ -329,19 +329,19 @@
             <form method="post" action="/admin/users/add" class="add-user-form">
                 <div class="form-group">
                     <label for="username">Username</label>
-                    <input type="text" id="username" name="username" required>
+                    <input type="text" id="username" name="username" required autocomplete="username">
                 </div>
                 <div class="form-group">
                     <label for="password">Password</label>
-                    <input type="password" id="password" name="password" required>
+                    <input type="password" id="password" name="password" required autocomplete="new-password">
                 </div>
                 <div class="form-group">
                     <label for="email">Email</label>
-                    <input type="email" id="email" name="email">
+                    <input type="email" id="email" name="email" autocomplete="email">
                 </div>
                 <div class="form-group">
                     <label for="subscription_type">Subscription</label>
-                    <select id="subscription_type" name="subscription_type">
+                    <select id="subscription_type" name="subscription_type" autocomplete="off">
                         <option value="free">Free</option>
                         <option value="premium">Premium</option>
                         <option value="enterprise">Enterprise</option>
@@ -349,7 +349,7 @@
                 </div>
                 <div class="form-group">
                     <label for="expiration_days">Days</label>
-                    <input type="number" id="expiration_days" name="expiration_days" value="30" min="1" max="3650">
+                    <input type="number" id="expiration_days" name="expiration_days" value="30" min="1" max="3650" autocomplete="off">
                 </div>
                 <div class="form-group">
                     <button type="submit" class="btn btn-success">Add User</button>
