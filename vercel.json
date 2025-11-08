@@ -3,8 +3,7 @@
   "builds": [
     { "src": "api/new_admin.py", "use": "@vercel/python" },
     { "src": "api/main.py", "use": "@vercel/python" },
-    { "src": "admin/static/**", "use": "@vercel/static" },
-    { "src": "desktop/dist/**", "use": "@vercel/static" }
+    { "src": "admin/static/**", "use": "@vercel/static" }
   ],
   "routes": [
     {
@@ -23,30 +22,17 @@
       "dest": "/admin/static/download.html"
     },
     {
-      "src": "/pefectedwithinline%20image.py",
-      "dest": "/pefectedwithinline image.py",
-      "headers": {
-        "content-type": "text/x-python",
-        "content-disposition": "attachment; filename=Enhanced-Email-Sender.py",
-        "cache-control": "no-store"
-      }
-    },
-    {
       "src": "/desktop/Enhanced-Email-Sender.exe",
-      "dest": "/desktop/dist/Enhanced-Email-Sender.exe",
+      "status": 302,
       "headers": {
-        "content-type": "application/octet-stream",
-        "content-disposition": "attachment; filename=Enhanced-Email-Sender.exe",
-        "cache-control": "no-store"
+        "Location": "https://github.com/LUCIFER14144/enhanced-email-sender/raw/main/desktop/dist/Enhanced-Email-Sender.exe"
       }
     },
     {
       "src": "/desktop/Enhanced-Email-Sender.zip",
-      "dest": "/desktop/dist/Enhanced-Email-Sender.zip",
+      "status": 302,
       "headers": {
-        "content-type": "application/zip",
-        "content-disposition": "attachment; filename=Enhanced-Email-Sender.zip",
-        "cache-control": "no-store"
+        "Location": "https://github.com/LUCIFER14144/enhanced-email-sender/raw/main/desktop/dist/Enhanced-Email-Sender.zip"
       }
     },
     {
