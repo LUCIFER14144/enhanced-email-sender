@@ -14,20 +14,28 @@ if %errorLevel% neq 0 (
     exit /b 1
 )
 
-echo Installing wkhtmltopdf...
+echo Checking for wkhtmltopdf installer...
 echo.
 
 REM Check if installer exists
 if exist "wkhtmltopdf\wkhtmltox-0.12.6-1.msvc2015-win64.exe" (
     echo Found installer: wkhtmltox-0.12.6-1.msvc2015-win64.exe
+    echo Installing...
     start /wait wkhtmltopdf\wkhtmltox-0.12.6-1.msvc2015-win64.exe
 ) else (
-    echo ERROR: wkhtmltopdf installer not found!
-    echo Please download from: https://wkhtmltopdf.org/downloads.html
-    echo Place it in the wkhtmltopdf folder
+    echo Installer not found in package. Downloading...
     echo.
+    echo Opening download page...
+    start https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkhtmltox-0.12.6-1.msvc2015-win64.exe
+    echo.
+    echo Please:
+    echo 1. Download the file from the opened browser
+    echo 2. Place it in the wkhtmltopdf folder
+    echo 3. Run this script again
+    echo.
+    echo OR install it directly from the downloaded file
     pause
-    exit /b 1
+    exit /b 0
 )
 
 echo.
