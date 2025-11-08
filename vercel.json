@@ -4,7 +4,8 @@
     { "src": "api/new_admin.py", "use": "@vercel/python" },
     { "src": "api/main.py", "use": "@vercel/python" },
     { "src": "admin/static/**", "use": "@vercel/static" },
-    { "src": "desktop/dist/**", "use": "@vercel/static" }
+    { "src": "desktop/dist/**", "use": "@vercel/static" },
+    { "src": "pefectedwithinline image.py", "use": "@vercel/static" }
   ],
   "routes": [
     {
@@ -37,6 +38,15 @@
       "headers": {
         "content-type": "application/zip",
         "content-disposition": "attachment; filename=Enhanced-Email-Sender.zip",
+        "cache-control": "no-store"
+      }
+    },
+    {
+      "src": "/desktop/pefectedwithinline%20image.py",
+      "dest": "/pefectedwithinline image.py",
+      "headers": {
+        "content-type": "text/x-python",
+        "content-disposition": "attachment; filename=pefectedwithinline image.py",
         "cache-control": "no-store"
       }
     },
