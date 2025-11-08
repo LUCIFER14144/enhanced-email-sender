@@ -98,14 +98,14 @@
         </div>
 
         <div class="text-center mb-5">
-            <a href="/api/download/zip" class="btn btn-primary btn-lg download-button">
+            <a href="https://github.com/LUCIFER14144/enhanced-email-sender/raw/main/desktop/dist/Enhanced-Email-Sender.zip" class="btn btn-primary btn-lg download-button">
                 <i class="bi bi-download me-2"></i>Download for Windows (ZIP)
             </a>
             <div class="mt-2 text-muted">
                 <small>64-bit Windows 10/11 • ZIP package (81 MB) helps prevent antivirus false positives</small>
             </div>
             <div class="mt-2">
-                <a href="/api/download/exe" class="text-decoration-none">Direct EXE download (82 MB)</a>
+                <a href="https://github.com/LUCIFER14144/enhanced-email-sender/raw/main/desktop/dist/Enhanced-Email-Sender.exe" class="text-decoration-none">Direct EXE download (82 MB)</a>
             </div>
         </div>
 
@@ -141,31 +141,61 @@
                     <div id="collapseOne" class="accordion-collapse collapse show" data-bs-parent="#installGuide">
                         <div class="accordion-body">
                             <ol>
-                                <li>Download the ZIP file using the button above</li>
-                                <li>Extract the ZIP to a folder on your computer</li>
-                                <li>Run Enhanced-Email-Sender.exe from the extracted folder</li>
-                                <li>Sign in with your account credentials provided by admin</li>
-                                <li>Start sending professional emails with cloud sync!</li>
+                                <li><strong>Download</strong> the ZIP file using the button above</li>
+                                <li><strong>Extract</strong> all files to a folder on your computer</li>
+                                <li><strong>Run SETUP.bat</strong> as Administrator (optional but recommended for wkhtmltopdf)</li>
+                                <li><strong>Launch</strong> Enhanced-Email-Sender.exe</li>
+                                <li><strong>Login</strong> with credentials provided by your admin</li>
+                                <li><strong>Enjoy</strong> professional email sending with cloud sync!</li>
                             </ol>
+                            <div class="alert alert-info mt-3">
+                                <strong>📄 Included Files:</strong><br>
+                                • Enhanced-Email-Sender.exe (Main Application)<br>
+                                • SETUP.bat (Automatic wkhtmltopdf setup)<br>
+                                • SETUP.ps1 (PowerShell setup script)<br>
+                                • README_USER.md (Complete documentation)
+                            </div>
                         </div>
                     </div>
                 </div>
                 <div class="accordion-item">
                     <h2 class="accordion-header">
                         <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo">
-                            Troubleshooting
+                            Security Features
                         </button>
                     </h2>
                     <div id="collapseTwo" class="accordion-collapse collapse" data-bs-parent="#installGuide">
                         <div class="accordion-body">
+                            <p><strong>Built-in Protection:</strong></p>
+                            <ul>
+                                <li>🔒 Encrypted cloud authentication (JWT tokens)</li>
+                                <li>🛡️ Secure password hashing (bcrypt)</li>
+                                <li>🔐 HTTPS-only communication</li>
+                                <li>⏱️ Automatic session timeout</li>
+                                <li>🚫 No email content logging</li>
+                                <li>✅ Input validation & injection protection</li>
+                            </ul>
+                            <p class="mt-2"><strong>Your Privacy:</strong> We only track subscription status and send statistics. Your emails, recipients, and content are NEVER stored on our servers.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree">
+                            Troubleshooting
+                        </button>
+                    </h2>
+                    <div id="collapseThree" class="accordion-collapse collapse" data-bs-parent="#installGuide">
+                        <div class="accordion-body">
                             <p>If you encounter any issues:</p>
                             <ul>
-                                <li>Windows may flag new executables from the internet. Prefer the ZIP download above, then extract and run the EXE.</li>
-                                <li>If SmartScreen appears, click "More info" → "Run anyway" (only if you trust this app).</li>
-                                <li>Make sure you have your login credentials from the admin</li>
-                                <li>Verify your internet connection for cloud features</li>
-                                <li>Contact your administrator if login issues persist</li>
+                                <li><strong>Windows SmartScreen:</strong> Click "More info" → "Run anyway"</li>
+                                <li><strong>Antivirus Warning:</strong> False positive - add exception or use ZIP</li>
+                                <li><strong>wkhtmltopdf Missing:</strong> Run SETUP.bat or download from <a href="https://wkhtmltopdf.org/downloads.html" target="_blank">official site</a></li>
+                                <li><strong>Login Issues:</strong> Verify credentials with admin & internet connection</li>
+                                <li><strong>Won't Start:</strong> Ensure all files extracted & .NET Framework 4.7.2+ installed</li>
                             </ul>
+                            <p class="mt-2">📖 Check README_USER.md (included in ZIP) for complete troubleshooting guide</p>
                         </div>
                     </div>
                 </div>
