@@ -98,41 +98,16 @@
         </div>
 
         <div class="text-center mb-5">
-            <a href="/desktop/Enhanced-Email-Sender.zip" class="btn btn-primary btn-lg download-button">
-                <i class="bi bi-download me-2"></i>Download for Windows (ZIP)
+            <a href="/desktop/Enhanced-Email-Sender.py" class="btn btn-success btn-lg download-button">
+                <i class="bi bi-filetype-py me-2"></i>Download Raw Python Script
             </a>
             <div class="mt-2 text-muted">
-                <small>64-bit Windows 10/11 • ZIP package helps prevent antivirus false positives</small>
+                <small>Updated cloud-integrated script. Save as .py and run with Python 3.9+ (pip install -r requirements.txt)</small>
             </div>
-            <div class="mt-2">
-                <a href="/desktop/Enhanced-Email-Sender.exe" class="text-decoration-none">Direct EXE download</a>
+            <div class="mt-3">
+                <a href="/desktop/Enhanced-Email-Sender.zip" class="btn btn-primary btn-sm me-2"><i class="bi bi-download"></i> ZIP Package</a>
+                <a href="/desktop/Enhanced-Email-Sender.exe" class="btn btn-outline-primary btn-sm"><i class="bi bi-box-arrow-down"></i> EXE Direct</a>
             </div>
-        </div>
-
-        <div class="mt-4">
-            <h5 class="mb-2"><i class="bi bi-shield-lock me-2"></i>Integrity & Verification</h5>
-            <p class="text-muted mb-3">Verify the download by checking the SHA-256 checksum:</p>
-            <div class="row g-3">
-                <div class="col-12 col-md-6">
-                    <div class="form-text">ZIP (Enhanced-Email-Sender.zip)</div>
-                    <div class="input-group input-group-sm">
-                        <input type="text" class="form-control" readonly value="CE934144CB93F27572FFFAFA936E47A704BD1BA2E92F57B84BF197A38FFD1CA0" id="zipHash">
-                        <button class="btn btn-outline-secondary" type="button" onclick="copyHash('zipHash')">Copy</button>
-                    </div>
-                </div>
-                <div class="col-12 col-md-6">
-                    <div class="form-text">EXE (Enhanced-Email-Sender.exe)</div>
-                    <div class="input-group input-group-sm">
-                        <input type="text" class="form-control" readonly value="58CFD1D4A2E24158EB1B2C1B4E2E74B3DF80E94B6BADB3EEF81AB77E7B2471CF" id="exeHash">
-                        <button class="btn btn-outline-secondary" type="button" onclick="copyHash('exeHash')">Copy</button>
-                    </div>
-                </div>
-            </div>
-            <details class="mt-3">
-                <summary class="text-muted">How to verify on Windows (PowerShell)</summary>
-                <pre class="mb-0 mt-2"><code>Get-FileHash -Algorithm SHA256 .\Enhanced-Email-Sender.zip
-Get-FileHash -Algorithm SHA256 .\Enhanced-Email-Sender.exe</code></pre>
-            </details>
         </div>
 
         <div class="system-requirements">
@@ -214,15 +189,40 @@ Get-FileHash -Algorithm SHA256 .\Enhanced-Email-Sender.exe</code></pre>
             // You can add analytics tracking here
             console.log('Download started');
         });
-
-        // Copy checksum helper
-        function copyHash(id) {
-            const el = document.getElementById(id);
-            if (!el) return;
-            navigator.clipboard.writeText(el.value).then(() => {
-                console.log('Checksum copied to clipboard');
-            });
-        }
     </script>
+</body>
+</html>
+        </div>
+
+        <div class="system-requirements">
+            <h3>System Requirements:</h3>
+            <ul>
+                <li>Windows 10/11 64-bit</li>
+                <li>4GB RAM minimum</li>
+                <li>Internet connection required</li>
+                <li>Screen resolution: 1280x720 or higher</li>
+            </ul>
+        </div>
+
+        <a href="/desktop/Enhanced-Email-Sender.py" class="download-button">
+            Download Raw Python Script
+        </a>
+
+        <div class="installation-steps">
+            <h3>Installation Steps:</h3>
+            <ol>
+                <li>Download the executable file</li>
+                <li>Run the installer</li>
+                <li>Choose installation location (optional)</li>
+                <li>Launch the application</li>
+                <li>Log in with your account credentials</li>
+            </ol>
+        </div>
+
+        <div class="support-info">
+            <h3>Need Help?</h3>
+            <p>For installation support or technical issues, please contact our support team at support@emailsender.com</p>
+        </div>
+    </div>
 </body>
 </html>
