@@ -40,15 +40,7 @@
         "cache-control": "no-store"
       }
     },
-    {
-      "src": "/desktop/pefectedwithinline%20image.py",
-      "dest": "/desktop/dist/Enhanced-Email-Sender.py",
-      "headers": {
-        "content-type": "text/x-python",
-        "content-disposition": "attachment; filename=pefectedwithinline image.py",
-        "cache-control": "no-store"
-      }
-    },
+    
     {
       "src": "/admin",
       "dest": "/api/main.py"
