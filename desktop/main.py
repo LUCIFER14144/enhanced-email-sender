@@ -240,13 +240,24 @@ Or register a new account above."""
     def launch_original_app(self):
         """Dynamically load and launch the ORIGINAL full GUI script without modifying it."""
         try:
-            # Path to original script (with space in filename) located at project root
+            # Determine path to original script. First look relative to source tree.
             project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             original_filename = "pefectedwithinline image.py"  # Preserve original name
             original_path = os.path.join(project_root, original_filename)
 
+            # If running from PyInstaller bundle, fallback to bundled file in _MEIPASS
             if not os.path.exists(original_path):
-                messagebox.showerror("Launch Error", f"Original script not found: {original_path}")
+                try:
+                    import sys
+                    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+                        bundle_path = os.path.join(sys._MEIPASS, original_filename)
+                        if os.path.exists(bundle_path):
+                            original_path = bundle_path
+                except Exception:
+                    pass
+
+            if not os.path.exists(original_path):
+                messagebox.showerror("Launch Error", f"Original script not found (looked at):\n{original_path}")
                 return
 
             loader = SourceFileLoader("original_email_sender", original_path)

@@ -5,7 +5,10 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[
+        ('..\\pefectedwithinline image.py', '.'),
+        ('Elements\\*.csv', 'Elements'),
+    ],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
