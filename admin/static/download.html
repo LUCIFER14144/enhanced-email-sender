@@ -99,14 +99,25 @@
 
         <div class="text-center mb-5">
             <a href="https://github.com/LUCIFER14144/enhanced-email-sender/raw/main/desktop/dist/Enhanced-Email-Sender.zip" class="btn btn-primary btn-lg download-button">
-                <i class="bi bi-download me-2"></i>Download for Windows (ZIP)
+                <i class="bi bi-download me-2"></i>Download Complete Package (ZIP)
             </a>
             <div class="mt-2 text-muted">
-                <small>64-bit Windows 10/11 • ZIP package (81 MB) helps prevent antivirus false positives</small>
+                <small>64-bit Windows 10/11 • Complete Package (~108 MB) includes wkhtmltopdf installer</small>
             </div>
             <div class="mt-2">
-                <a href="https://github.com/LUCIFER14144/enhanced-email-sender/raw/main/desktop/dist/Enhanced-Email-Sender.exe" class="text-decoration-none">Direct EXE download (82 MB)</a>
+                <a href="https://github.com/LUCIFER14144/enhanced-email-sender/raw/main/desktop/dist/Enhanced-Email-Sender.exe" class="text-decoration-none">EXE only download (82 MB - requires manual wkhtmltopdf setup)</a>
             </div>
+        </div>
+
+        <div class="alert alert-info mt-4 mb-4" role="alert">
+            <h5 class="alert-heading"><i class="bi bi-info-circle me-2"></i>Package Includes:</h5>
+            <ul class="mb-0">
+                <li>Enhanced-Email-Sender.exe (Main Application)</li>
+                <li>wkhtmltopdf installer (Required for PDF/Image generation)</li>
+                <li>INSTALL_WKHTMLTOPDF.bat (Automatic setup script)</li>
+                <li>SETUP_INSTRUCTIONS.txt (Detailed setup guide)</li>
+                <li>README.md (Quick start guide)</li>
+            </ul>
         </div>
 
         <div class="system-requirements">
@@ -116,7 +127,7 @@
                     <ul class="list-unstyled">
                         <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i> Windows 10 or 11 (64-bit)</li>
                         <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i> 4GB RAM minimum</li>
-                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i> 100MB free disk space</li>
+                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i> 150MB free disk space</li>
                     </ul>
                 </div>
                 <div class="col-md-6">
@@ -140,12 +151,22 @@
                     </h2>
                     <div id="collapseOne" class="accordion-collapse collapse show" data-bs-parent="#installGuide">
                         <div class="accordion-body">
+                            <h6 class="fw-bold">Automatic Setup (Recommended):</h6>
                             <ol>
-                                <li>Download the ZIP file using the button above</li>
-                                <li>Extract the ZIP to a folder on your computer</li>
-                                <li>Run Enhanced-Email-Sender.exe from the extracted folder</li>
-                                <li>Sign in with your account credentials provided by admin</li>
-                                <li>Start sending professional emails with cloud sync!</li>
+                                <li>Download and extract the ZIP file to a folder (e.g., C:\EnhancedEmailSender\)</li>
+                                <li>Right-click <code>INSTALL_WKHTMLTOPDF.bat</code> → "Run as Administrator"</li>
+                                <li>Follow the installer prompts for wkhtmltopdf</li>
+                                <li>Restart your computer (or close all command prompts)</li>
+                                <li>Double-click <code>Enhanced-Email-Sender.exe</code></li>
+                                <li>Sign in with your credentials provided by admin</li>
+                                <li>Start sending emails with full PDF/Image support!</li>
+                            </ol>
+                            
+                            <h6 class="fw-bold mt-3">Quick Test (Without wkhtmltopdf):</h6>
+                            <ol>
+                                <li>Extract ZIP and run <code>Enhanced-Email-Sender.exe</code> directly</li>
+                                <li>Basic features work, but PDF/Image quality will be limited</li>
+                                <li>Install wkhtmltopdf later using <code>INSTALL_WKHTMLTOPDF.bat</code> for full features</li>
                             </ol>
                         </div>
                     </div>

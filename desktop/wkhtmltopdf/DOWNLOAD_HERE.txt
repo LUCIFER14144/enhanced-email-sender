@@ -1,0 +1,13 @@
+DOWNLOAD wkhtmltopdf installer and place it here!
+
+Download Link:
+https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkhtmltox-0.12.6-1.msvc2015-win64.exe
+
+File Name: wkhtmltox-0.12.6-1.msvc2015-win64.exe
+Size: ~31 MB
+
+Alternative Download:
+https://wkhtmltopdf.org/downloads.html
+(Select Windows 64-bit version)
+
+After downloading, place the installer in this folder.

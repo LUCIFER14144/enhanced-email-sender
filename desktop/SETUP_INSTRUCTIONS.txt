@@ -1,0 +1,62 @@
+================================================================================
+    ENHANCED EMAIL SENDER - SETUP INSTRUCTIONS
+================================================================================
+
+STEP 1: EXTRACT THE ZIP FILE
+-----------------------------
+1. Extract all files from Enhanced-Email-Sender.zip to a folder
+   Example: C:\EnhancedEmailSender\
+
+STEP 2: INSTALL WKHTMLTOPDF (Required for PDF/Image generation)
+----------------------------------------------------------------
+Option A - AUTOMATIC SETUP (Recommended):
+   1. Double-click "INSTALL_WKHTMLTOPDF.bat"
+   2. Wait for installation to complete
+   3. Restart your computer (or close all command prompts)
+
+Option B - MANUAL SETUP:
+   1. Go to the "wkhtmltopdf" folder
+   2. Run the wkhtmltox installer
+   3. Install to default location: C:\Program Files\wkhtmltopdf
+   4. Add to PATH environment variable:
+      - Right-click "This PC" → Properties
+      - Advanced System Settings → Environment Variables
+      - Under "System Variables", find "Path"
+      - Click "Edit" → "New"
+      - Add: C:\Program Files\wkhtmltopdf\bin
+      - Click OK on all windows
+   5. Restart your computer
+
+STEP 3: RUN THE APPLICATION
+----------------------------
+1. Double-click "Enhanced-Email-Sender.exe"
+2. Login with your credentials provided by admin
+3. Enjoy!
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+Problem: "wkhtmltoimage not found" error
+Solution: Make sure wkhtmltopdf is installed and added to PATH
+
+Problem: Application won't start
+Solution: Extract from ZIP first, don't run directly from ZIP file
+
+Problem: Windows SmartScreen warning
+Solution: Click "More info" → "Run anyway"
+
+Problem: Cloud features not working
+Solution: Check your internet connection and login credentials
+
+================================================================================
+SYSTEM REQUIREMENTS
+================================================================================
+- Windows 10/11 (64-bit)
+- 4GB RAM minimum
+- 100MB free disk space
+- Internet connection (for cloud features)
+
+================================================================================
+For support, contact your administrator
+================================================================================
