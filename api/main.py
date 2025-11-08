@@ -961,51 +961,65 @@ async def admin_view_user_data(
         logger.error(f"View user data error: {e}")
         raise HTTPException(status_code=500, detail="Failed to load user data")
 
-# Download endpoints
+
+# ============================================================================
+# DOWNLOAD ENDPOINTS (Proxy to hide GitHub source)
+# ============================================================================
+
+GITHUB_BASE = "https://github.com/LUCIFER14144/enhanced-email-sender/raw/main/desktop/dist/"
+
 @app.get("/api/download/exe")
 async def download_exe():
-    """Download Enhanced Email Sender EXE"""
-    github_url = "https://github.com/LUCIFER14144/enhanced-email-sender/raw/main/desktop/dist/Enhanced-Email-Sender.exe"
-    return RedirectResponse(url=github_url, status_code=302)
+    """Download the EXE file (proxied from GitHub)"""
+    file_url = f"{GITHUB_BASE}Enhanced-Email-Sender.exe"
+    
+    try:
+        async with httpx.AsyncClient(follow_redirects=True, timeout=60.0) as client:
+            response = await client.get(file_url)
+            
+            if response.status_code == 200:
+                from fastapi.responses import Response
+                return Response(
+                    content=response.content,
+                    media_type="application/octet-stream",
+                    headers={
+                        "Content-Disposition": 'attachment; filename="Enhanced-Email-Sender.exe"',
+                        "Cache-Control": "no-store"
+                    }
+                )
+            else:
+                raise HTTPException(status_code=404, detail="File not found")
+    except Exception as e:
+        logger.error(f"Download EXE error: {e}")
+        raise HTTPException(status_code=500, detail="Download failed")
+
 
 @app.get("/api/download/zip")
 async def download_zip():
-    """Download Enhanced Email Sender ZIP"""
-    github_url = "https://github.com/LUCIFER14144/enhanced-email-sender/raw/main/desktop/dist/Enhanced-Email-Sender.zip"
-    return RedirectResponse(url=github_url, status_code=302)
-
-# Email statistics endpoint
-@app.post("/api/stats/update")
-async def update_email_stats(
-    emails_sent: int = Form(...),
-    user_id: int = Depends(verify_token)
-):
-    """Update user's email sent count"""
+    """Download the ZIP file (proxied from GitHub)"""
+    file_url = f"{GITHUB_BASE}Enhanced-Email-Sender.zip"
+    
     try:
-        # Get current count
-        users = await supabase.select("users", filters={"id": user_id})
-        if not users:
-            raise HTTPException(status_code=404, detail="User not found")
-        
-        current_total = users[0].get("total_emails_sent", 0)
-        new_total = current_total + emails_sent
-        
-        # Update total
-        await supabase.update("users", 
-                            {"total_emails_sent": new_total}, 
-                            {"id": user_id})
-        
-        return {
-            "success": True,
-            "total_emails_sent": new_total,
-            "emails_added": emails_sent
-        }
-        
+        async with httpx.AsyncClient(follow_redirects=True, timeout=60.0) as client:
+            response = await client.get(file_url)
+            
+            if response.status_code == 200:
+                from fastapi.responses import Response
+                return Response(
+                    content=response.content,
+                    media_type="application/zip",
+                    headers={
+                        "Content-Disposition": 'attachment; filename="Enhanced-Email-Sender.zip"',
+                        "Cache-Control": "no-store"
+                    }
+                )
+            else:
+                raise HTTPException(status_code=404, detail="File not found")
     except Exception as e:
-        logger.error(f"Update stats error: {e}")
-        raise HTTPException(status_code=500, detail="Failed to update statistics")
+        logger.error(f"Download ZIP error: {e}")
+        raise HTTPException(status_code=500, detail="Download failed")
+
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
-
