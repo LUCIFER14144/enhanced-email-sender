@@ -3,9 +3,14 @@
   "builds": [
     { "src": "api/new_admin.py", "use": "@vercel/python" },
     { "src": "api/main.py", "use": "@vercel/python" },
-    { "src": "admin/static/**", "use": "@vercel/static" }
+    { "src": "admin/static/**", "use": "@vercel/static" },
+    { "src": "download.html", "use": "@vercel/static" }
   ],
   "routes": [
+    {
+      "src": "/download",
+      "dest": "/download.html"
+    },
     {
       "src": "/static/(.*)",
       "dest": "/admin/static/$1",
@@ -18,8 +23,18 @@
       "dest": "/admin/static/favicon.ico"
     },
     {
-      "src": "/download",
-      "dest": "/admin/static/download.html"
+      "src": "/desktop/Enhanced-Email-Sender.exe",
+      "status": 302,
+      "headers": {
+        "Location": "https://github.com/LUCIFER14144/enhanced-email-sender/raw/main/desktop/dist/Enhanced-Email-Sender.exe"
+      }
+    },
+    {
+      "src": "/desktop/Enhanced-Email-Sender.zip",
+      "status": 302,
+      "headers": {
+        "Location": "https://github.com/LUCIFER14144/enhanced-email-sender/raw/main/desktop/dist/Enhanced-Email-Sender.zip"
+      }
     },
     {
       "src": "/admin",
