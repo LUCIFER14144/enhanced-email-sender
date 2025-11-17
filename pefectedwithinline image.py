@@ -333,28 +333,17 @@ def center_window(win, width=None, height=None):
 
 def on_login_success_and_start(login_root):
     """Called after successful login. Closes the login and starts the main application."""
-    # Start the application's main entrypoint if present BEFORE destroying login window
+    # Destroy login window first
     try:
-        if 'main' in globals():
-            login_root.destroy()
-            main()
-        elif 'app_main' in globals():
-            login_root.destroy()
-            app_main()
-        else:
-            # No main found - just print and close
-            print("Login successful. No main() or app_main() found.")
-            try:
-                login_root.destroy()
-            except Exception:
-                pass
+        login_root.destroy()
+    except Exception:
+        pass
+    
+    # Then start main application
+    try:
+        main()
     except Exception as e:
-        # Close login window first
-        try:
-            login_root.destroy()
-        except Exception:
-            pass
-        # Then show error in a new window
+        # Show error in a new window
         try:
             import tkinter as tk
             from tkinter import messagebox
@@ -364,6 +353,8 @@ def on_login_success_and_start(login_root):
             error_root.destroy()
         except Exception:
             print(f"Startup Error: {e}")
+        import sys
+        sys.exit(1)
 
 def create_warm_login_modal():
     """Create a warm-styled login window and block until successful login."""

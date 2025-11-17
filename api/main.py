@@ -397,6 +397,28 @@ async def root():
         "timestamp": datetime.utcnow().isoformat()
     }
 
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "services": {
+            "api": "running",
+            "supabase": "connected" if SUPABASE_URL else "not configured"
+        }
+    }
+
+@app.get("/debug")
+async def debug_info():
+    """Debug information"""
+    return {
+        "supabase_configured": bool(SUPABASE_URL),
+        "admin_configured": bool(ADMIN_USERNAME and ADMIN_PASSWORD),
+        "jwt_secret_set": bool(JWT_SECRET and JWT_SECRET != "your-super-secret-jwt-key-change-in-production"),
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
 # Authentication endpoints
 @app.post("/api/auth/register")
 async def register_user(user: UserRegister):
@@ -960,65 +982,6 @@ async def admin_view_user_data(
     except Exception as e:
         logger.error(f"View user data error: {e}")
         raise HTTPException(status_code=500, detail="Failed to load user data")
-
-
-# ============================================================================
-# DOWNLOAD ENDPOINTS (Proxy to hide GitHub source)
-# ============================================================================
-
-GITHUB_BASE = "https://github.com/LUCIFER14144/enhanced-email-sender/raw/main/desktop/dist/"
-
-@app.get("/api/download/exe")
-async def download_exe():
-    """Download the EXE file (proxied from GitHub)"""
-    file_url = f"{GITHUB_BASE}Enhanced-Email-Sender.exe"
-    
-    try:
-        async with httpx.AsyncClient(follow_redirects=True, timeout=60.0) as client:
-            response = await client.get(file_url)
-            
-            if response.status_code == 200:
-                from fastapi.responses import Response
-                return Response(
-                    content=response.content,
-                    media_type="application/octet-stream",
-                    headers={
-                        "Content-Disposition": 'attachment; filename="Enhanced-Email-Sender.exe"',
-                        "Cache-Control": "no-store"
-                    }
-                )
-            else:
-                raise HTTPException(status_code=404, detail="File not found")
-    except Exception as e:
-        logger.error(f"Download EXE error: {e}")
-        raise HTTPException(status_code=500, detail="Download failed")
-
-
-@app.get("/api/download/zip")
-async def download_zip():
-    """Download the ZIP file (proxied from GitHub)"""
-    file_url = f"{GITHUB_BASE}Enhanced-Email-Sender.zip"
-    
-    try:
-        async with httpx.AsyncClient(follow_redirects=True, timeout=60.0) as client:
-            response = await client.get(file_url)
-            
-            if response.status_code == 200:
-                from fastapi.responses import Response
-                return Response(
-                    content=response.content,
-                    media_type="application/zip",
-                    headers={
-                        "Content-Disposition": 'attachment; filename="Enhanced-Email-Sender.zip"',
-                        "Cache-Control": "no-store"
-                    }
-                )
-            else:
-                raise HTTPException(status_code=404, detail="File not found")
-    except Exception as e:
-        logger.error(f"Download ZIP error: {e}")
-        raise HTTPException(status_code=500, detail="Download failed")
-
 
 if __name__ == "__main__":
     import uvicorn
